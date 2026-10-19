@@ -98,13 +98,33 @@ class Settings(BaseSettings):
     COLOR_CREAM: str = "#FAF8F1"
     COLOR_GOLD: str = "#B99A59"
 
+    # Typography Settings
+    ARABIC_FONT_NAME: str = Field(
+        default="amiri",
+        description="Arabic typography choice: 'amiri' (authentic Quranic/Hadith Naskh) or 'noto_sans' (modern sans-serif)."
+    )
+
+    def get_arabic_font_path(self) -> Path:
+        """Returns path to the verified Arabic font with complete Presentation Forms & Harakat support."""
+        if self.ARABIC_FONT_NAME == "noto_sans":
+            noto = self.FONTS_DIR / "NotoSansArabic.ttf"
+            if noto.exists():
+                return noto
+
+        amiri_bold = self.FONTS_DIR / "Amiri-Bold.ttf"
+        if amiri_bold.exists():
+            return amiri_bold
+        amiri_regular = self.FONTS_DIR / "Amiri-Regular.ttf"
+        if amiri_regular.exists():
+            return amiri_regular
+        noto = self.FONTS_DIR / "NotoSansArabic.ttf"
+        if noto.exists():
+            return noto
+        return self.FONTS_DIR / "Cairo.ttf"
+
     def get_cairo_font_path(self) -> Path:
-        """Returns path to Cairo Arabic font."""
-        primary = self.FONTS_DIR / "Cairo.ttf"
-        if primary.exists():
-            return primary
-        fallback = self.FONTS_DIR / "Cairo-Regular.ttf"
-        return fallback if fallback.exists() else primary
+        """Alias for backward compatibility."""
+        return self.get_arabic_font_path()
 
     def get_inter_font_path(self) -> Path:
         """Returns path to Inter English font."""

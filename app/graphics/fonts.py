@@ -49,11 +49,16 @@ def load_font(font_path: Path, size: int) -> ImageFont.FreeTypeFont | ImageFont.
         except Exception as e:
             logger.warning(f"Failed to load font from {font_path}: {e}")
     
-    # Try system font fallbacks
+    # Try font fallbacks that support Arabic Presentation Forms and Harakat
     system_fallbacks = [
-        "Cairo.ttf",
+        str(settings.FONTS_DIR / "Amiri-Bold.ttf"),
+        str(settings.FONTS_DIR / "Amiri-Regular.ttf"),
+        str(settings.FONTS_DIR / "NotoSansArabic.ttf"),
+        "Amiri-Regular.ttf",
         "NotoSansArabic-Regular.ttf",
-        "seguiemj.ttf",
+        "trado.ttf",
+        "tradbdo.ttf",
+        "tahoma.ttf",
         "arial.ttf"
     ]
     for fb in system_fallbacks:
@@ -67,8 +72,8 @@ def load_font(font_path: Path, size: int) -> ImageFont.FreeTypeFont | ImageFont.
 
 
 def get_arabic_font(size: int = 56) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Returns the primary Arabic font (Cairo)."""
-    return load_font(settings.get_cairo_font_path(), size)
+    """Returns the primary verified Arabic font (Amiri / Noto Sans Arabic)."""
+    return load_font(settings.get_arabic_font_path(), size)
 
 
 def get_english_font(size: int = 36) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
