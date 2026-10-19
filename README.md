@@ -17,9 +17,9 @@ A production-ready, fully automated Instagram publishing system dedicated to dai
   - **Cream**: `#FAF8F1` (Warm, elegant canvas)
   - **Sage Green**: `#E7EEE5` (Soft spiritual accent)
   - **Gold**: `#B99A59` (Geometric & decorative accents)
-- **Typography**:
-  - **Arabic**: Cairo (open-source, bundled in `assets/fonts/Cairo.ttf`)
-  - **English**: Inter (open-source, bundled in `assets/fonts/Inter.ttf`)
+- **Typography & Shaping**:
+  - **Arabic**: **Cairo** (Medium 450 weight, bundled in `assets/fonts/Cairo.ttf`) with **HarfBuzz (`uharfbuzz`)** OpenType GPOS anchor positioning and `freetype-py` rasterization. Full Tashkeel (harakat) is 100% preserved with zero diacritic overlap or collisions.
+  - **English**: **Inter** (SemiBold 600 weight, bundled in `assets/fonts/Inter.ttf`) for bold, high-contrast mobile readability.
 - **Brand Mark**: Clean geometric vector emblem featuring an 8-pointed star (*Rub el Hizb*) in `assets/logo.svg`.
 
 ---
@@ -30,7 +30,10 @@ A production-ready, fully automated Instagram publishing system dedicated to dai
    - Automated 4:5 high-resolution graphic generation.
    - Large, shaped Arabic text with English translation and verified source badge.
    - Rich bilingual caption with transliteration, spiritual reflection, and curated hashtags.
-2. **Two to Four Daily Instagram Stories (1080 × 1920)**:
+2. **Verse of the Day (آية اليوم)**:
+   - Automated ingestion of short, meaningful Quranic verses from [`fawazahmed0/quran-api`](https://github.com/fawazahmed0/quran-api) (Quran Academy Uthmani script + Sahih International translation).
+   - Dedicated feed post (`verse_of_the_day`) and story (`verse_story`) templates with 21+ pre-curated short verses.
+3. **Two to Four Daily Instagram Stories (1080 × 1920)**:
    - Dedicated branded templates for Morning Adhkar, Evening Adhkar, Du'a of the Day, and Friday Reminders.
    - Built-in safe margins (top ~280px, bottom ~280px) ensuring no overlap with Instagram UI elements.
 3. **Instagram Notes Preparation (≤ 60 Characters)**:
@@ -57,8 +60,8 @@ A production-ready, fully automated Instagram publishing system dedicated to dai
    - 24-hour catch-up window safely processes delayed runs without double-posting.
 8. **Ambiguous Timeout Reconciliation**:
    - If an API publish request times out after submission, the system inspects recent media to verify if it was posted before attempting any retry, preventing duplicate posts.
-9. **Full Test Suite**:
-   - 31 unit tests covering graphics rendering, Arabic BiDi shaping, approval gates, state machine, and error policies.
+10. **Full Test Suite**:
+    - 40 automated unit tests covering HarfBuzz OpenType layout, Cairo/Inter font rendering, Quran API, approval gates, state machine, and error policies.
 
 ---
 
@@ -172,6 +175,7 @@ Visit `http://localhost:8000` to preview generated images, copy Note drafts, and
 
 ## ✦ Documentation Guides
 
+- **[🤖 Autonomous Agent Runbook (Handoff Guide)](AGENT_RUNBOOK.md)**: Master step-by-step instructions for AI agents to deploy and operate this repository autonomously.
 - [Local Development & Setup Guide](docs/setup.md)
 - [GitHub Actions & Production Deployment](docs/deployment.md)
 - [Meta & Instagram Graph API Setup](docs/meta-api.md)
