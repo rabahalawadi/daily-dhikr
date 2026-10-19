@@ -1,0 +1,95 @@
+name: Daily Dhikr Content Automation
+
+on:
+  schedule:
+    # Jordan Time is UTC+3 (Asia/Amman) year-round.
+    # Scheduled daily publication slots:
+    # - 07:00 Jordan (04:00 UTC) -> Morning Story
+    # - 09:00 Jordan (06:00 UTC) -> Main Feed Post
+    # - 13:00 Jordan (10:00 UTC) -> Reminder Story
+    # - 17:00 Jordan (14:00 UTC) -> Evening Story
+    # - 20:00 Jordan (17:00 UTC) -> Daily Note preparation
+    - cron: '0 4,6,10,14,17 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode without real API publication (true/false)'
+        required: true
+        default: 'false'
+        type: boolean
+      target_date:
+        description: 'Target date (YYYY-MM-DD, defaults to current Amman date)'
+        required: false
+        type: string
+
+# Ensure only one scheduled publishing run executes at a time
+concurrency:
+  group: daily-dhikr-publisher
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish-due-content:
+    name: Process Due Instagram Content
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install System Fonts & Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-core fonts-noto-extra
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify Environment & Initialize Database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TIMEZONE: "Asia/Amman"
+        run: |
+          python -c "
+          from app.database import init_db, check_db_connection
+          init_db()
+          print('Database connectivity verified:', check_db_connection())
+          "
+
+      - name: Execute Daily Dhikr Publisher
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TIMEZONE: "Asia/Amman"
+          DRY_RUN: ${{ inputs.dry_run == true && 'true' || secrets.DRY_RUN || 'true' }}
+          PUBLISHING_ENABLED: ${{ secrets.PUBLISHING_ENABLED || 'false' }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          INSTAGRAM_API_VERSION: "v21.0"
+          STORAGE_BACKEND: ${{ secrets.STORAGE_BACKEND || 'local' }}
+          STORAGE_ENDPOINT: ${{ secrets.STORAGE_ENDPOINT }}
+          STORAGE_BUCKET: ${{ secrets.STORAGE_BUCKET || 'dhikr-media' }}
+          STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}
+          STORAGE_PUBLIC_URL_PREFIX: ${{ secrets.STORAGE_PUBLIC_URL_PREFIX }}
+          NOTIFICATION_WEBHOOK_URL: ${{ secrets.NOTIFICATION_WEBHOOK_URL }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.target_date }}" != "" ]; then
+            ARGS="$ARGS --date ${{ inputs.target_date }}"
+          fi
+          python scripts/run_daily.py $ARGS
+
+      - name: Upload Non-Sensitive Generated Assets on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-assets
+          path: generated_assets/
+          retention-days: 3

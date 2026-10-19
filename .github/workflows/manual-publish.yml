@@ -1,0 +1,74 @@
+name: Manual Publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: 'Specific Publication Job ID to publish'
+        required: true
+        type: string
+      dry_run:
+        description: 'Run in dry-run mode without real API publication'
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: daily-dhikr-publisher
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  manual-publish:
+    name: Publish Specific Approved Job
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-core
+          pip install -r requirements.txt
+
+      - name: Publish Single Job
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          PUBLISHING_ENABLED: ${{ secrets.PUBLISHING_ENABLED || 'false' }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          STORAGE_BACKEND: ${{ secrets.STORAGE_BACKEND || 'local' }}
+          STORAGE_ENDPOINT: ${{ secrets.STORAGE_ENDPOINT }}
+          STORAGE_BUCKET: ${{ secrets.STORAGE_BUCKET || 'dhikr-media' }}
+          STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}
+          STORAGE_PUBLIC_URL_PREFIX: ${{ secrets.STORAGE_PUBLIC_URL_PREFIX }}
+          NOTIFICATION_WEBHOOK_URL: ${{ secrets.NOTIFICATION_WEBHOOK_URL }}
+        run: |
+          python -c "
+          import sys
+          from app.database import get_db_context, init_db
+          from app.models import PublicationJob, JobStatus
+          from app.scheduler.runner import runner
+
+          init_db()
+          with get_db_context() as db:
+              job = db.query(PublicationJob).filter(PublicationJob.id == '${{ inputs.job_id }}').first()
+              if not job:
+                  print('Job ${{ inputs.job_id }} not found!')
+                  sys.exit(1)
+              print(f'Starting execution for job: {job.id} (Status: {job.status.value})')
+              runner._process_job(db, job)
+              print(f'Finished execution. Final status: {job.status.value}')
+          "

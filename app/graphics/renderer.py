@@ -1,0 +1,296 @@
+"""
+Pillow-based Graphic Rendering Engine for Daily Dhikr.
+Renders high-contrast, elegant, mobile-optimized images with proper
+Arabic text shaping, bidirectional layout, and Islamic geometric accents.
+"""
+
+import hashlib
+import io
+import logging
+from pathlib import Path
+from typing import Tuple, List, Optional
+from PIL import Image, ImageDraw, ImageFont
+from app.config import settings
+from app.models import ContentItem, AssetType
+from app.graphics.fonts import (
+    shape_arabic_text,
+    get_arabic_font,
+    get_english_font,
+    load_font,
+)
+from app.graphics.templates import get_template, TemplateConfig, FEED_POST_TEMPLATE
+from app.content.captions import format_source_citation
+
+logger = logging.getLogger(__name__)
+
+
+def wrap_arabic_lines(
+    text: str,
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+    max_width: int
+) -> List[str]:
+    """
+    Wraps Arabic text into visual lines that fit within max_width.
+    Splits into words, tests candidate line width, and shapes each line individually.
+    """
+    words = text.strip().split()
+    if not words:
+        return []
+
+    lines = []
+    current_words = []
+
+    for word in words:
+        test_words = current_words + [word]
+        test_line = " ".join(test_words)
+        shaped_test = shape_arabic_text(test_line)
+        bbox = font.getbbox(shaped_test)
+        width = bbox[2] - bbox[0]
+
+        if width <= max_width or not current_words:
+            current_words.append(word)
+        else:
+            lines.append(shape_arabic_text(" ".join(current_words)))
+            current_words = [word]
+
+    if current_words:
+        lines.append(shape_arabic_text(" ".join(current_words)))
+
+    return lines
+
+
+def wrap_english_lines(
+    text: str,
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+    max_width: int
+) -> List[str]:
+    """
+    Wraps English text cleanly into lines that fit within max_width.
+    """
+    words = text.strip().split()
+    if not words:
+        return []
+
+    lines = []
+    current_words = []
+
+    for word in words:
+        test_words = current_words + [word]
+        test_line = " ".join(test_words)
+        bbox = font.getbbox(test_line)
+        width = bbox[2] - bbox[0]
+
+        if width <= max_width or not current_words:
+            current_words.append(word)
+        else:
+            lines.append(" ".join(current_words))
+            current_words = [word]
+
+    if current_words:
+        lines.append(" ".join(current_words))
+
+    return lines
+
+
+def draw_geometric_accent(
+    draw: ImageDraw.ImageDraw,
+    center_x: int,
+    center_y: int,
+    size: int,
+    color: str
+) -> None:
+    """Draws a subtle 8-pointed Islamic star accent (Rub el Hizb style)."""
+    half = size // 2
+    # First square
+    draw.rectangle(
+        [(center_x - half, center_y - half), (center_x + half, center_y + half)],
+        outline=color,
+        width=2
+    )
+    # Diamond (rotated square)
+    diamond = [
+        (center_x, center_y - int(half * 1.35)),
+        (center_x + int(half * 1.35), center_y),
+        (center_x, center_y + int(half * 1.35)),
+        (center_x - int(half * 1.35), center_y),
+    ]
+    draw.polygon(diamond, outline=color, width=2)
+    # Center dot
+    draw.ellipse(
+        [(center_x - 3, center_y - 3), (center_x + 3, center_y + 3)],
+        fill=color
+    )
+
+
+class GraphicRenderer:
+    """High-resolution image generator for Instagram feed posts and Stories."""
+
+    def __init__(self, output_dir: Optional[Path] = None):
+        self.output_dir = output_dir or settings.OUTPUT_MEDIA_DIR
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def render(
+        self,
+        item: ContentItem,
+        template_name: str = "feed_post"
+    ) -> Tuple[Path, str, int, int]:
+        """
+        Renders an Instagram graphic for the content item using the specified template.
+        Returns: (saved_image_path, sha256_checksum, width, height)
+        """
+        template: TemplateConfig = get_template(template_name)
+
+        # 1. Create base canvas
+        image = Image.new("RGB", (template.width, template.height), color=template.bg_color)
+        draw = ImageDraw.Draw(image)
+
+        # 2. Draw border frame
+        if template.border_accent:
+            margin = 35
+            draw.rectangle(
+                [(margin, margin), (template.width - margin, template.height - margin)],
+                outline=template.accent_color,
+                width=2
+            )
+            inner_margin = 45
+            draw.rectangle(
+                [(inner_margin, inner_margin), (template.width - inner_margin, template.height - inner_margin)],
+                outline=template.primary_text_color,
+                width=1
+            )
+
+        # 3. Load Fonts
+        arabic_font = get_arabic_font(template.arabic_font_size)
+        english_font = get_english_font(template.english_font_size)
+        header_font = get_english_font(24)
+        citation_font = get_english_font(22)
+        tagline_font = get_arabic_font(26)
+
+        max_text_width = template.width - 160
+
+        # 4. Draw Header
+        header_y = template.safe_margin_top
+        draw_geometric_accent(draw, template.width // 2, header_y, size=24, color=template.accent_color)
+
+        # English brand / category title
+        draw.text(
+            (template.width // 2, header_y + 40),
+            template.header_title_en,
+            font=header_font,
+            fill=template.primary_text_color,
+            anchor="mm"
+        )
+
+        # Arabic brand tagline shaped
+        shaped_header_ar = shape_arabic_text(template.header_title_ar)
+        draw.text(
+            (template.width // 2, header_y + 80),
+            shaped_header_ar,
+            font=tagline_font,
+            fill=template.accent_color,
+            anchor="mm"
+        )
+
+        # Decorative divider under header
+        div_y = header_y + 115
+        draw.line(
+            [(template.width // 2 - 120, div_y), (template.width // 2 + 120, div_y)],
+            fill=template.accent_color,
+            width=2
+        )
+
+        # 5. Content Layout Calculation
+        # Wrap Arabic & English lines
+        arabic_lines = wrap_arabic_lines(item.arabic_text, arabic_font, max_text_width)
+        english_lines = wrap_english_lines(item.english_meaning, english_font, max_text_width)
+
+        arabic_line_height = int(template.arabic_font_size * 1.55)
+        english_line_height = int(template.english_font_size * 1.45)
+
+        total_arabic_h = len(arabic_lines) * arabic_line_height
+        total_english_h = len(english_lines) * english_line_height
+        divider_h = 70
+        total_content_h = total_arabic_h + divider_h + total_english_h
+
+        # Available vertical space
+        content_top = header_y + 140
+        content_bottom = template.height - template.safe_margin_bottom - 80
+        available_h = content_bottom - content_top
+
+        # Center content vertically in available area
+        start_y = content_top + max(20, (available_h - total_content_h) // 2)
+
+        # 6. Render Arabic text lines
+        current_y = start_y
+        for line in arabic_lines:
+            draw.text(
+                (template.width // 2, current_y),
+                line,
+                font=arabic_font,
+                fill=template.primary_text_color,
+                anchor="mm"
+            )
+            current_y += arabic_line_height
+
+        # 7. Render Mid-divider
+        current_y += 20
+        draw_geometric_accent(draw, template.width // 2, current_y, size=16, color=template.accent_color)
+        draw.line(
+            [(template.width // 2 - 80, current_y), (template.width // 2 - 25, current_y)],
+            fill=template.accent_color,
+            width=1
+        )
+        draw.line(
+            [(template.width // 2 + 25, current_y), (template.width // 2 + 80, current_y)],
+            fill=template.accent_color,
+            width=1
+        )
+        current_y += 45
+
+        # 8. Render English translation lines
+        for line in english_lines:
+            draw.text(
+                (template.width // 2, current_y),
+                line,
+                font=english_font,
+                fill=template.secondary_text_color,
+                anchor="mm"
+            )
+            current_y += english_line_height
+
+        # 9. Render Footer & Source Citation
+        footer_y = template.height - template.safe_margin_bottom
+        citation_text = format_source_citation(item)
+        draw.text(
+            (template.width // 2, footer_y - 25),
+            citation_text,
+            font=citation_font,
+            fill=template.accent_color,
+            anchor="mm"
+        )
+        draw.text(
+            (template.width // 2, footer_y + 15),
+            "@DailyDhikr • A moment of remembrance, every day.",
+            font=header_font,
+            fill=template.primary_text_color,
+            anchor="mm"
+        )
+
+        # 10. Save and calculate checksum
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=95, optimize=True)
+        img_bytes = buffer.getvalue()
+        checksum = hashlib.sha256(img_bytes).hexdigest()
+
+        filename = f"{template.name}_{item.id[:8]}_{checksum[:8]}.jpg"
+        output_path = self.output_dir / filename
+
+        with open(output_path, "wb") as f:
+            f.write(img_bytes)
+
+        logger.info(f"Rendered {template.name} ({template.width}x{template.height}) to {output_path}")
+        return output_path, checksum, template.width, template.height
+
+
+# Singleton renderer
+renderer = GraphicRenderer()

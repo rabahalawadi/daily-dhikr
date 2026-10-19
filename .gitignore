@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+*.secrets.json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated media assets & diagnostics
+generated_assets/
+artifacts/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

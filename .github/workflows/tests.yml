@@ -1,0 +1,38 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run Automated Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-core
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-mock pytest-cov
+
+      - name: Run Pytest Suite
+        run: |
+          pytest --cov=app --cov-report=term-missing

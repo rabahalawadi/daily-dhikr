@@ -1,0 +1,45 @@
+name: Validate Content Library
+
+on:
+  push:
+    paths:
+      - 'scripts/seed_demo.py'
+      - 'app/content/**'
+      - 'app/graphics/**'
+  pull_request:
+    paths:
+      - 'scripts/seed_demo.py'
+      - 'app/content/**'
+      - 'app/graphics/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Verify Religious Content & Rendering
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-core
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Seed and Validate Library
+        run: |
+          python scripts/seed_demo.py
+          python scripts/validate_content.py

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <!-- Background subtle gradient -->
+    <radialGradient id="bgGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#FAF8F1" />
+      <stop offset="100%" stop-color="#E7EEE5" />
+    </radialGradient>
+    <!-- Gold gradient for emblem -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D4AF37" />
+      <stop offset="50%" stop-color="#B99A59" />
+      <stop offset="100%" stop-color="#997C3A" />
+    </linearGradient>
+  </defs>
+
+  <!-- Circular background frame -->
+  <circle cx="200" cy="200" r="185" fill="url(#bgGradient)" stroke="#244936" stroke-width="3" />
+  <circle cx="200" cy="200" r="175" fill="none" stroke="#B99A59" stroke-width="1.2" stroke-dasharray="4 3" />
+
+  <!-- Geometric 8-pointed star (Rub el Hizb) -->
+  <g transform="translate(200, 160)" stroke="url(#goldGrad)" stroke-width="2.5" fill="none">
+    <!-- First square rotated 0 -->
+    <rect x="-45" y="-45" width="90" height="90" rx="3" stroke-linecap="round" />
+    <!-- Second square rotated 45 degrees -->
+    <rect x="-45" y="-45" width="90" height="90" rx="3" transform="rotate(45)" stroke-linecap="round" />
+    <!-- Central inner circle and accent dot -->
+    <circle cx="0" cy="0" r="22" stroke="#244936" stroke-width="1.8" />
+    <circle cx="0" cy="0" r="5" fill="#B99A59" stroke="none" />
+  </g>
+
+  <!-- Elegant botanical accent leaves -->
+  <path d="M 170 230 C 185 220, 195 222, 200 232 C 205 222, 215 220, 230 230 C 218 238, 208 236, 200 248 C 192 236, 182 238, 170 230 Z" fill="#244936" />
+
+  <!-- Typography -->
+  <g text-anchor="middle">
+    <!-- Arabic Brand Name -->
+    <text x="200" y="285" font-family="'Cairo', 'Noto Sans Arabic', 'Traditional Arabic', sans-serif" font-size="28" font-weight="700" fill="#244936" letter-spacing="1">
+      ذِكْرٌ يَوْمِيّ
+    </text>
+
+    <!-- English Brand Name -->
+    <text x="200" y="315" font-family="'Inter', -apple-system, sans-serif" font-size="15" font-weight="600" fill="#244936" letter-spacing="3">
+      DAILY DHIKR
+    </text>
+
+    <!-- Tagline -->
+    <text x="200" y="340" font-family="'Inter', -apple-system, sans-serif" font-size="10.5" font-weight="400" fill="#B99A59" letter-spacing="1.5">
+      A MOMENT OF REMEMBRANCE, EVERY DAY
+    </text>
+  </g>
+</svg>
