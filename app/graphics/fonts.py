@@ -1,5 +1,6 @@
 """
 Font management, Arabic text-shaping, and bidirectional layout handling.
+Supports Cairo, Noto Sans Arabic, and Amiri with zero broken characters and clean Tashkeel.
 """
 
 import logging
@@ -12,27 +13,79 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Configure arabic reshaper for optimal Tashkeel (harakat) and ligature handling
-RESHAPER_CONFIG = {
+# Mapping from Presentation Forms-B isolated glyphs to standard Arabic base characters.
+# Modern fonts (like Google's Cairo) map isolated letters directly to standard Unicode
+# points (U+0621-U+064A) rather than deprecated Presentation Forms.
+ISOLATED_TO_STANDARD = {
+    0xFE80: 0x0621,  # Hamza
+    0xFE81: 0x0622,  # Alef Madda
+    0xFE83: 0x0623,  # Alef Hamza Above
+    0xFE85: 0x0624,  # Waw Hamza
+    0xFE87: 0x0625,  # Alef Hamza Below
+    0xFE89: 0x0626,  # Yeh Hamza
+    0xFE8D: 0x0627,  # Alef
+    0xFE8F: 0x0628,  # Beh
+    0xFE93: 0x0629,  # Teh Marbuta
+    0xFE95: 0x062A,  # Teh
+    0xFE99: 0x062B,  # Theh
+    0xFE9D: 0x062C,  # Jeem
+    0xFEA1: 0x062D,  # Hah
+    0xFEA5: 0x062E,  # Khah
+    0xFEA9: 0x062F,  # Dal
+    0xFEAB: 0x0630,  # Thal
+    0xFEAD: 0x0631,  # Reh
+    0xFEAF: 0x0632,  # Zain
+    0xFEB1: 0x0633,  # Seen
+    0xFEB5: 0x0634,  # Sheen
+    0xFEB9: 0x0635,  # Sad
+    0xFEBD: 0x0636,  # Dad
+    0xFEC1: 0x0637,  # Tah
+    0xFEC5: 0x0638,  # Zah
+    0xFEC9: 0x0639,  # Ain
+    0xFECD: 0x063A,  # Ghain
+    0xFED1: 0x0641,  # Feh
+    0xFED5: 0x0642,  # Qaf
+    0xFED9: 0x0643,  # Kaf
+    0xFEDD: 0x0644,  # Lam
+    0xFEE1: 0x0645,  # Meem
+    0xFEE5: 0x0646,  # Noon
+    0xFEE9: 0x0647,  # Heh
+    0xFEED: 0x0648,  # Waw
+    0xFEEF: 0x0649,  # Alef Maksura
+    0xFEF1: 0x064A,  # Yeh
+}
+
+# Preconfigured reshapers
+reshaper_clean = arabic_reshaper.ArabicReshaper(configuration={
+    'delete_harakat': True,
+    'support_ligatures': True,
+    'language': 'Arabic',
+})
+
+reshaper_with_tashkeel = arabic_reshaper.ArabicReshaper(configuration={
     'delete_harakat': False,
     'support_ligatures': True,
     'language': 'Arabic',
-}
-reshaper = arabic_reshaper.ArabicReshaper(configuration=RESHAPER_CONFIG)
+})
 
 
-def shape_arabic_text(text: str) -> str:
+def shape_arabic_text(text: str, strip_tashkeel: Optional[bool] = None) -> str:
     """
-    Transforms raw Arabic text with proper ligature shaping and right-to-left bidi reordering
-    so that standard graphic renderers like Pillow draw it correctly.
+    Transforms raw Arabic text with proper ligature shaping and right-to-left bidi reordering.
+    Eliminates broken characters by mapping isolated glyphs to standard Unicode, and
+    eliminates overlapping/conflicting diacritics when strip_tashkeel is True.
     """
     if not text:
         return ""
     try:
-        # Step 1: Reshape characters (connect initial, medial, final, isolated forms)
-        reshaped = reshaper.reshape(text)
-        # Step 2: Apply BiDi algorithm to reorder text right-to-left for visual drawing
-        bidi_text = get_display(reshaped)
+        do_strip = settings.STRIP_TASHKEEL_ON_IMAGES if strip_tashkeel is None else strip_tashkeel
+        r = reshaper_clean if do_strip else reshaper_with_tashkeel
+        reshaped = r.reshape(text)
+
+        # Map Presentation Forms-B isolated glyphs to standard Unicode codepoints
+        # so Cairo font renders them seamlessly with zero .notdef tofu boxes.
+        fixed = [chr(ISOLATED_TO_STANDARD[ord(c)]) if ord(c) in ISOLATED_TO_STANDARD else c for c in reshaped]
+        bidi_text = get_display("".join(fixed))
         return bidi_text
     except Exception as e:
         logger.warning(f"Error shaping Arabic text: {e}. Falling back to original.")
@@ -41,25 +94,41 @@ def shape_arabic_text(text: str) -> str:
 
 def load_font(font_path: Path, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """
-    Loads a TrueType font at the specified size with graceful fallback to default font.
+    Loads a TrueType/OpenType font at the specified size with graceful fallback.
+    Sets variable font axes for optimal contrast:
+    - Cairo: Weight 700 (Bold)
+    - Inter: Weight 550 (Medium/SemiBold)
     """
     if font_path.exists():
         try:
-            return ImageFont.truetype(str(font_path), size)
+            font = ImageFont.truetype(str(font_path), size)
+            if hasattr(font, "set_variation_by_axes"):
+                path_lower = str(font_path).lower()
+                if "cairo" in path_lower:
+                    try:
+                        font.set_variation_by_axes([700, 0])  # Weight 700 (Bold), Slant 0
+                    except Exception:
+                        pass
+                elif "inter" in path_lower:
+                    try:
+                        font.set_variation_by_axes([14, 550])  # Optical size 14, Weight 550
+                    except Exception:
+                        pass
+            return font
         except Exception as e:
             logger.warning(f"Failed to load font from {font_path}: {e}")
-    
-    # Try font fallbacks that support Arabic Presentation Forms and Harakat
+
+    # Fallbacks with complete Arabic coverage
     system_fallbacks = [
-        str(settings.FONTS_DIR / "Amiri-Bold.ttf"),
-        str(settings.FONTS_DIR / "Amiri-Regular.ttf"),
+        str(settings.FONTS_DIR / "Cairo.ttf"),
         str(settings.FONTS_DIR / "NotoSansArabic.ttf"),
-        "Amiri-Regular.ttf",
+        str(settings.FONTS_DIR / "Amiri-Bold.ttf"),
+        "Cairo.ttf",
         "NotoSansArabic-Regular.ttf",
         "trado.ttf",
         "tradbdo.ttf",
         "tahoma.ttf",
-        "arial.ttf"
+        "arial.ttf",
     ]
     for fb in system_fallbacks:
         try:
@@ -72,7 +141,7 @@ def load_font(font_path: Path, size: int) -> ImageFont.FreeTypeFont | ImageFont.
 
 
 def get_arabic_font(size: int = 56) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Returns the primary verified Arabic font (Amiri / Noto Sans Arabic)."""
+    """Returns the primary verified Arabic font (Cairo)."""
     return load_font(settings.get_arabic_font_path(), size)
 
 

@@ -100,26 +100,39 @@ class Settings(BaseSettings):
 
     # Typography Settings
     ARABIC_FONT_NAME: str = Field(
-        default="amiri",
-        description="Arabic typography choice: 'amiri' (authentic Quranic/Hadith Naskh) or 'noto_sans' (modern sans-serif)."
+        default="cairo",
+        description="Arabic typography choice: 'cairo' (brand modern typography), 'noto_sans' (clean sans-serif), or 'amiri' (calligraphy)."
+    )
+    STRIP_TASHKEEL_ON_IMAGES: bool = Field(
+        default=True,
+        description="When true, removes conflicting overlapping diacritics on image renders for clean typography, while preserving exact tashkeel in database, verification checksums, and captions."
     )
 
     def get_arabic_font_path(self) -> Path:
-        """Returns path to the verified Arabic font with complete Presentation Forms & Harakat support."""
+        """Returns path to the selected verified Arabic font."""
+        if self.ARABIC_FONT_NAME == "cairo":
+            cairo = self.FONTS_DIR / "Cairo.ttf"
+            if cairo.exists():
+                return cairo
+
         if self.ARABIC_FONT_NAME == "noto_sans":
             noto = self.FONTS_DIR / "NotoSansArabic.ttf"
             if noto.exists():
                 return noto
 
-        amiri_bold = self.FONTS_DIR / "Amiri-Bold.ttf"
-        if amiri_bold.exists():
-            return amiri_bold
-        amiri_regular = self.FONTS_DIR / "Amiri-Regular.ttf"
-        if amiri_regular.exists():
-            return amiri_regular
-        noto = self.FONTS_DIR / "NotoSansArabic.ttf"
-        if noto.exists():
-            return noto
+        if self.ARABIC_FONT_NAME == "amiri":
+            amiri_bold = self.FONTS_DIR / "Amiri-Bold.ttf"
+            if amiri_bold.exists():
+                return amiri_bold
+            amiri_reg = self.FONTS_DIR / "Amiri-Regular.ttf"
+            if amiri_reg.exists():
+                return amiri_reg
+
+        # Fallback order
+        for name in ("Cairo.ttf", "NotoSansArabic.ttf", "Amiri-Bold.ttf"):
+            p = self.FONTS_DIR / name
+            if p.exists():
+                return p
         return self.FONTS_DIR / "Cairo.ttf"
 
     def get_cairo_font_path(self) -> Path:
