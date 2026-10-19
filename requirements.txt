@@ -5,6 +5,7 @@ freetype-py>=2.4.0
 arabic-reshaper>=3.0.0
 python-bidi>=0.4.2
 sqlalchemy>=2.0.30
+psycopg2-binary>=2.9.9
 alembic>=1.13.1
 pydantic>=2.7.0
 pydantic-settings>=2.2.0
