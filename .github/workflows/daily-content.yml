@@ -49,7 +49,7 @@ jobs:
       - name: Install System Fonts & Dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends fonts-noto-core fonts-noto-extra
+          sudo apt-get install -y --no-install-recommends fonts-noto-core fonts-noto-extra libfreetype6-dev
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
