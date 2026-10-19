@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Tuple, List, Optional
 from PIL import Image, ImageDraw, ImageFont
 from app.config import settings
-from app.models import ContentItem, AssetType
+from app.models import ContentItem, AssetType, ContentCategory
 from app.graphics.fonts import (
     shape_arabic_text,
     get_arabic_font,
@@ -152,7 +152,15 @@ class GraphicRenderer:
         Renders an Instagram graphic for the content item using the specified template.
         Returns: (saved_image_path, sha256_checksum, width, height)
         """
-        template: TemplateConfig = get_template(template_name)
+        # Auto-route to Verse of the Day templates when category is VERSE_OF_THE_DAY
+        effective_template = template_name
+        if item.category == ContentCategory.VERSE_OF_THE_DAY:
+            if effective_template in ("feed_post", "default"):
+                effective_template = "verse_of_the_day"
+            elif effective_template in ("morning_story", "story"):
+                effective_template = "verse_story"
+
+        template: TemplateConfig = get_template(effective_template)
 
         # 1. Create base canvas
         image = Image.new("RGB", (template.width, template.height), color=template.bg_color)
@@ -307,7 +315,7 @@ class GraphicRenderer:
 
         # 9. Render Footer & Source Citation
         footer_y = template.height - template.safe_margin_bottom
-        citation_text = format_source_citation(item)
+        citation_text = format_source_citation(item, for_image=True)
         draw.text(
             (template.width // 2, footer_y - 25),
             citation_text,

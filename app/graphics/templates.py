@@ -141,6 +141,45 @@ SHORT_REMINDER_TEMPLATE = TemplateConfig(
 )
 
 
+# Verse of the Day Feed Post (Cream Background, Forest Green text, Gold Accent)
+VERSE_OF_THE_DAY_TEMPLATE = TemplateConfig(
+    name="verse_of_the_day",
+    width=1080,
+    height=1350,
+    bg_color=settings.COLOR_CREAM,             # #FAF8F1
+    primary_text_color=settings.COLOR_FOREST_GREEN,  # #244936
+    secondary_text_color="#435E4E",
+    accent_color=settings.COLOR_GOLD,          # #B99A59
+    arabic_font_size=60,
+    english_font_size=32,
+    header_title_en="VERSE OF THE DAY",
+    header_title_ar="آيَةُ اليَوْمِ",
+    is_story=False,
+    safe_margin_top=100,
+    safe_margin_bottom=100,
+    border_accent=True,
+)
+
+# Verse of the Day Story Post (1080x1920)
+VERSE_STORY_TEMPLATE = TemplateConfig(
+    name="verse_story",
+    width=1080,
+    height=1920,
+    bg_color=settings.COLOR_SAGE_GREEN,        # #E7EEE5
+    primary_text_color=settings.COLOR_FOREST_GREEN,
+    secondary_text_color="#435E4E",
+    accent_color=settings.COLOR_GOLD,
+    arabic_font_size=64,
+    english_font_size=34,
+    header_title_en="VERSE OF THE DAY",
+    header_title_ar="آيَةُ اليَوْمِ",
+    is_story=True,
+    safe_margin_top=280,
+    safe_margin_bottom=280,
+    border_accent=True,
+)
+
+
 TEMPLATES = {
     "feed_post": FEED_POST_TEMPLATE,
     "morning_story": MORNING_STORY_TEMPLATE,
@@ -148,6 +187,8 @@ TEMPLATES = {
     "dua_story": DUA_STORY_TEMPLATE,
     "friday_reminder": FRIDAY_REMINDER_TEMPLATE,
     "short_reminder": SHORT_REMINDER_TEMPLATE,
+    "verse_of_the_day": VERSE_OF_THE_DAY_TEMPLATE,
+    "verse_story": VERSE_STORY_TEMPLATE,
 }
 
 

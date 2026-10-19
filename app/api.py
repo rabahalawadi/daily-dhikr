@@ -235,3 +235,76 @@ def mark_note_as_posted(job_id: str, db: Session = Depends(get_db)):
     job.last_error = "Manually marked as published by administrator."
     db.commit()
     return {"status": "success", "job_id": job.id}
+
+
+# -----------------------------------------------------------------------------
+# Quran API & Verse of the Day Endpoints
+# -----------------------------------------------------------------------------
+
+@app.get("/api/quran/curated")
+def list_curated_verses():
+    """Returns the list of curated short, meaningful Quranic verses."""
+    from app.content.quran_api import CURATED_SHORT_VERSES, SURAHS
+    items = []
+    for ch, v in CURATED_SHORT_VERSES:
+        s_info = SURAHS.get(ch, {})
+        items.append({
+            "chapter": ch,
+            "verse": v,
+            "surah_name_en": s_info.get("name_en", f"Surah {ch}"),
+            "surah_name_ar": s_info.get("name_ar", ""),
+            "reference": f"{ch}:{v}",
+        })
+    return {"count": len(items), "curated_verses": items}
+
+
+@app.get("/api/quran/verse")
+def get_quran_verse(chapter: int = Query(..., ge=1, le=114), verse: int = Query(..., ge=1)):
+    """Fetches a verse live from Quran API (fawazahmed0/quran-api) with authentic script and translation."""
+    from app.content.quran_api import fetch_verse, is_short_and_meaningful
+    try:
+        data = fetch_verse(chapter, verse)
+        data["is_short_and_meaningful"] = is_short_and_meaningful(data)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch verse: {e}")
+
+
+@app.post("/api/quran/import")
+def import_quran_verse(
+    chapter: int = Query(..., ge=1, le=114),
+    verse: int = Query(..., ge=1),
+    auto_approve: bool = Query(True),
+    db: Session = Depends(get_db)
+):
+    """Imports a specific verse from Quran API into the content library as VERSE_OF_THE_DAY."""
+    from app.content.quran_api import fetch_verse, save_verse_to_db
+    try:
+        data = fetch_verse(chapter, verse)
+        item = save_verse_to_db(db, data, auto_approve=auto_approve)
+        return {
+            "status": "imported",
+            "content_id": item.id,
+            "surah": data["surah_name_en"],
+            "reference": data["reference"],
+            "arabic_text": item.arabic_text,
+            "english_meaning": item.english_meaning,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to import verse: {e}")
+
+
+@app.post("/api/quran/sync-curated")
+def sync_curated_quran_verses(db: Session = Depends(get_db)):
+    """Syncs the entire collection of curated short, meaningful verses into the database."""
+    from app.content.quran_api import sync_curated_verses
+    try:
+        items = sync_curated_verses(db, auto_approve=True)
+        return {
+            "status": "success",
+            "synced_count": len(items),
+            "message": f"Successfully synced {len(items)} short verses into the library.",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to sync curated verses: {e}")
+

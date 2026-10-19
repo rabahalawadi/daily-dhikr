@@ -55,6 +55,7 @@ class ContentCategory(str, enum.Enum):
     DAILY_REMINDER = "DAILY_REMINDER"
     DUA = "DUA"
     FRIDAY_SPECIAL = "FRIDAY_SPECIAL"
+    VERSE_OF_THE_DAY = "VERSE_OF_THE_DAY"
     NOTE = "NOTE"
 
 
