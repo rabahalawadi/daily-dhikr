@@ -17,6 +17,9 @@ from app.graphics.fonts import (
     get_arabic_font,
     get_english_font,
     load_font,
+    measure_arabic_harfbuzz,
+    render_arabic_harfbuzz,
+    HAS_HARFBUZZ,
 )
 from app.graphics.templates import get_template, TemplateConfig, FEED_POST_TEMPLATE
 from app.content.captions import format_source_citation
@@ -27,11 +30,15 @@ logger = logging.getLogger(__name__)
 def wrap_arabic_lines(
     text: str,
     font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
-    max_width: int
+    max_width: int,
+    font_path: Optional[Path] = None,
+    font_size: Optional[int] = None,
 ) -> List[str]:
     """
     Wraps Arabic text into visual lines that fit within max_width.
-    Splits into words, tests candidate line width, and shapes each line individually.
+    Splits into words and tests candidate line width using HarfBuzz when available,
+    or Pillow bounding box fallback.
+    Returns list of unshaped (raw) Arabic lines so HarfBuzz can perform full GPOS shaping.
     """
     words = text.strip().split()
     if not words:
@@ -40,21 +47,28 @@ def wrap_arabic_lines(
     lines = []
     current_words = []
 
+    arabic_font_path = font_path or settings.get_arabic_font_path()
+    f_size = font_size or getattr(font, "size", 48)
+
     for word in words:
         test_words = current_words + [word]
         test_line = " ".join(test_words)
-        shaped_test = shape_arabic_text(test_line)
-        bbox = font.getbbox(shaped_test)
-        width = bbox[2] - bbox[0]
+
+        if HAS_HARFBUZZ and arabic_font_path.exists():
+            width = measure_arabic_harfbuzz(test_line, arabic_font_path, f_size)
+        else:
+            shaped_test = shape_arabic_text(test_line)
+            bbox = font.getbbox(shaped_test)
+            width = bbox[2] - bbox[0]
 
         if width <= max_width or not current_words:
             current_words.append(word)
         else:
-            lines.append(shape_arabic_text(" ".join(current_words)))
+            lines.append(" ".join(current_words))
             current_words = [word]
 
     if current_words:
-        lines.append(shape_arabic_text(" ".join(current_words)))
+        lines.append(" ".join(current_words))
 
     return lines
 
@@ -160,11 +174,12 @@ class GraphicRenderer:
             )
 
         # 3. Load Fonts
-        arabic_font = get_arabic_font(template.arabic_font_size)
-        english_font = get_english_font(template.english_font_size)
-        header_font = get_english_font(24)
-        citation_font = get_english_font(22)
-        tagline_font = get_arabic_font(26)
+        arabic_font = get_arabic_font(template.arabic_font_size, weight=450)
+        english_font = get_english_font(template.english_font_size, weight=600)
+        header_font = get_english_font(24, weight=600)
+        citation_font = get_english_font(22, weight=550)
+        tagline_font = get_arabic_font(26, weight=450)
+        arabic_font_path = settings.get_arabic_font_path()
 
         max_text_width = template.width - 160
 
@@ -181,15 +196,28 @@ class GraphicRenderer:
             anchor="mm"
         )
 
-        # Arabic brand tagline shaped
-        shaped_header_ar = shape_arabic_text(template.header_title_ar)
-        draw.text(
-            (template.width // 2, header_y + 80),
-            shaped_header_ar,
-            font=tagline_font,
-            fill=template.accent_color,
-            anchor="mm"
-        )
+        # Arabic brand tagline
+        if HAS_HARFBUZZ and arabic_font_path.exists():
+            tagline_baseline = header_y + 80 + int(26 * 0.28)
+            render_arabic_harfbuzz(
+                target_image=image,
+                line=template.header_title_ar,
+                font_path=arabic_font_path,
+                font_size=26,
+                color_hex=template.accent_color,
+                center_x=template.width // 2,
+                baseline_y=tagline_baseline,
+                weight=450.0,
+            )
+        else:
+            shaped_header_ar = shape_arabic_text(template.header_title_ar)
+            draw.text(
+                (template.width // 2, header_y + 80),
+                shaped_header_ar,
+                font=tagline_font,
+                fill=template.accent_color,
+                anchor="mm"
+            )
 
         # Decorative divider under header
         div_y = header_y + 115
@@ -201,7 +229,13 @@ class GraphicRenderer:
 
         # 5. Content Layout Calculation
         # Wrap Arabic & English lines
-        arabic_lines = wrap_arabic_lines(item.arabic_text, arabic_font, max_text_width)
+        arabic_lines = wrap_arabic_lines(
+            item.arabic_text,
+            arabic_font,
+            max_text_width,
+            font_path=arabic_font_path,
+            font_size=template.arabic_font_size,
+        )
         english_lines = wrap_english_lines(item.english_meaning, english_font, max_text_width)
 
         arabic_line_height = int(template.arabic_font_size * 1.55)
@@ -223,13 +257,26 @@ class GraphicRenderer:
         # 6. Render Arabic text lines
         current_y = start_y
         for line in arabic_lines:
-            draw.text(
-                (template.width // 2, current_y),
-                line,
-                font=arabic_font,
-                fill=template.primary_text_color,
-                anchor="mm"
-            )
+            if HAS_HARFBUZZ and arabic_font_path.exists():
+                baseline = current_y + int(template.arabic_font_size * 0.28)
+                render_arabic_harfbuzz(
+                    target_image=image,
+                    line=line,
+                    font_path=arabic_font_path,
+                    font_size=template.arabic_font_size,
+                    color_hex=template.primary_text_color,
+                    center_x=template.width // 2,
+                    baseline_y=baseline,
+                    weight=450.0,
+                )
+            else:
+                draw.text(
+                    (template.width // 2, current_y),
+                    shape_arabic_text(line),
+                    font=arabic_font,
+                    fill=template.primary_text_color,
+                    anchor="mm"
+                )
             current_y += arabic_line_height
 
         # 7. Render Mid-divider

@@ -1,21 +1,30 @@
 """
 Font management, Arabic text-shaping, and bidirectional layout handling.
-Supports Cairo, Noto Sans Arabic, and Amiri with zero broken characters and clean Tashkeel.
+Features high-precision HarfBuzz OpenType layout with Cairo, Noto Sans Arabic, and Amiri.
+Preserves complete Tashkeel (harakat) without overlaps using GPOS anchor positioning,
+and balances font weights (Cairo Medium / Inter SemiBold).
 """
 
 import logging
 from pathlib import Path
-from typing import Optional
-from PIL import ImageFont
+from typing import Optional, List, Tuple
+from PIL import Image, ImageFont
 import arabic_reshaper
 from bidi.algorithm import get_display
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Check for HarfBuzz and FreeType engines
+try:
+    import uharfbuzz as hb
+    import freetype
+    HAS_HARFBUZZ = True
+except ImportError:
+    HAS_HARFBUZZ = False
+    logger.info("uharfbuzz or freetype-py not installed; falling back to standard Pillow text renderer.")
+
 # Mapping from Presentation Forms-B isolated glyphs to standard Arabic base characters.
-# Modern fonts (like Google's Cairo) map isolated letters directly to standard Unicode
-# points (U+0621-U+064A) rather than deprecated Presentation Forms.
 ISOLATED_TO_STANDARD = {
     0xFE80: 0x0621,  # Hamza
     0xFE81: 0x0622,  # Alef Madda
@@ -56,14 +65,14 @@ ISOLATED_TO_STANDARD = {
 }
 
 # Preconfigured reshapers
-reshaper_clean = arabic_reshaper.ArabicReshaper(configuration={
-    'delete_harakat': True,
+reshaper_with_tashkeel = arabic_reshaper.ArabicReshaper(configuration={
+    'delete_harakat': False,
     'support_ligatures': True,
     'language': 'Arabic',
 })
 
-reshaper_with_tashkeel = arabic_reshaper.ArabicReshaper(configuration={
-    'delete_harakat': False,
+reshaper_clean = arabic_reshaper.ArabicReshaper(configuration={
+    'delete_harakat': True,
     'support_ligatures': True,
     'language': 'Arabic',
 })
@@ -72,8 +81,7 @@ reshaper_with_tashkeel = arabic_reshaper.ArabicReshaper(configuration={
 def shape_arabic_text(text: str, strip_tashkeel: Optional[bool] = None) -> str:
     """
     Transforms raw Arabic text with proper ligature shaping and right-to-left bidi reordering.
-    Eliminates broken characters by mapping isolated glyphs to standard Unicode, and
-    eliminates overlapping/conflicting diacritics when strip_tashkeel is True.
+    Eliminates broken characters by mapping isolated glyphs to standard Unicode.
     """
     if not text:
         return ""
@@ -83,7 +91,6 @@ def shape_arabic_text(text: str, strip_tashkeel: Optional[bool] = None) -> str:
         reshaped = r.reshape(text)
 
         # Map Presentation Forms-B isolated glyphs to standard Unicode codepoints
-        # so Cairo font renders them seamlessly with zero .notdef tofu boxes.
         fixed = [chr(ISOLATED_TO_STANDARD[ord(c)]) if ord(c) in ISOLATED_TO_STANDARD else c for c in reshaped]
         bidi_text = get_display("".join(fixed))
         return bidi_text
@@ -92,12 +99,16 @@ def shape_arabic_text(text: str, strip_tashkeel: Optional[bool] = None) -> str:
         return text
 
 
-def load_font(font_path: Path, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+def load_font(
+    font_path: Path,
+    size: int,
+    weight: Optional[int] = None,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """
     Loads a TrueType/OpenType font at the specified size with graceful fallback.
-    Sets variable font axes for optimal contrast:
-    - Cairo: Weight 700 (Bold)
-    - Inter: Weight 550 (Medium/SemiBold)
+    Sets variable font axes for balanced typography:
+    - Cairo: Default Weight 450 (Regular/Medium - balanced, elegant, not too thick)
+    - Inter: Default Weight 600 (SemiBold - solid, high contrast, not too thin)
     """
     if font_path.exists():
         try:
@@ -106,12 +117,14 @@ def load_font(font_path: Path, size: int) -> ImageFont.FreeTypeFont | ImageFont.
                 path_lower = str(font_path).lower()
                 if "cairo" in path_lower:
                     try:
-                        font.set_variation_by_axes([700, 0])  # Weight 700 (Bold), Slant 0
+                        w = weight if weight is not None else 450
+                        font.set_variation_by_axes([w, 0])
                     except Exception:
                         pass
                 elif "inter" in path_lower:
                     try:
-                        font.set_variation_by_axes([14, 550])  # Optical size 14, Weight 550
+                        w = weight if weight is not None else 600
+                        font.set_variation_by_axes([14, w])
                     except Exception:
                         pass
             return font
@@ -140,11 +153,141 @@ def load_font(font_path: Path, size: int) -> ImageFont.FreeTypeFont | ImageFont.
     return ImageFont.load_default()
 
 
-def get_arabic_font(size: int = 56) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Returns the primary verified Arabic font (Cairo)."""
-    return load_font(settings.get_arabic_font_path(), size)
+def get_arabic_font(size: int = 56, weight: int = 450) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Returns the primary verified Arabic font (Cairo) with balanced Medium weight."""
+    return load_font(settings.get_arabic_font_path(), size, weight=weight)
 
 
-def get_english_font(size: int = 36) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Returns the primary English font (Inter)."""
-    return load_font(settings.get_inter_font_path(), size)
+def get_english_font(size: int = 36, weight: int = 600) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Returns the primary English font (Inter) with SemiBold/Bold weight."""
+    return load_font(settings.get_inter_font_path(), size, weight=weight)
+
+
+# -----------------------------------------------------------------------------
+# HarfBuzz OpenType Shaping Engine
+# -----------------------------------------------------------------------------
+
+_font_bytes_cache: dict[str, bytes] = {}
+_ft_faces_cache: dict[str, freetype.Face] = {} if HAS_HARFBUZZ else {}
+
+
+def _get_font_bytes(font_path: Path) -> bytes:
+    key = str(font_path)
+    if key not in _font_bytes_cache:
+        with open(font_path, "rb") as f:
+            _font_bytes_cache[key] = f.read()
+    return _font_bytes_cache[key]
+
+
+def _get_ft_face(font_path: Path) -> freetype.Face:
+    key = str(font_path)
+    if key not in _ft_faces_cache:
+        _ft_faces_cache[key] = freetype.Face(key)
+    return _ft_faces_cache[key]
+
+
+def measure_arabic_harfbuzz(
+    text: str,
+    font_path: Path,
+    font_size: int,
+    weight: float = 450.0,
+) -> int:
+    """Measures pixel width of an Arabic string using HarfBuzz OpenType layout."""
+    if not HAS_HARFBUZZ or not font_path.exists():
+        # Fallback to Pillow bbox
+        font = get_arabic_font(font_size)
+        shaped = shape_arabic_text(text)
+        bbox = font.getbbox(shaped)
+        return bbox[2] - bbox[0]
+
+    font_data = _get_font_bytes(font_path)
+    hb_face = hb.Face(hb.Blob(font_data))
+    hb_font = hb.Font(hb_face)
+    hb_font.scale = (font_size * 64, font_size * 64)
+    try:
+        hb_font.set_variations({"wght": weight})
+    except Exception:
+        pass
+
+    buf = hb.Buffer()
+    buf.add_str(text)
+    buf.guess_segment_properties()
+    hb.shape(hb_font, buf)
+
+    total_w = sum(pos.x_advance for pos in buf.glyph_positions) // 64
+    return total_w
+
+
+def render_arabic_harfbuzz(
+    target_image: Image.Image,
+    line: str,
+    font_path: Path,
+    font_size: int,
+    color_hex: str,
+    center_x: int,
+    baseline_y: int,
+    weight: float = 450.0,
+) -> int:
+    """
+    Renders an Arabic text line with full Tashkeel (harakat) using HarfBuzz GPOS positioning
+    and FreeType glyph rasterization directly onto target_image.
+    Returns the pixel width of the line.
+    """
+    if not HAS_HARFBUZZ or not font_path.exists():
+        # Fallback to standard Pillow draw
+        from PIL import ImageDraw
+        draw = ImageDraw.Draw(target_image)
+        font = get_arabic_font(font_size)
+        shaped = shape_arabic_text(line)
+        draw.text((center_x, baseline_y), shaped, font=font, fill=color_hex, anchor="mm")
+        bbox = font.getbbox(shaped)
+        return bbox[2] - bbox[0]
+
+    font_data = _get_font_bytes(font_path)
+    hb_face = hb.Face(hb.Blob(font_data))
+    hb_font = hb.Font(hb_face)
+    hb_font.scale = (font_size * 64, font_size * 64)
+    try:
+        hb_font.set_variations({"wght": weight})
+    except Exception:
+        pass
+
+    ft_face = _get_ft_face(font_path)
+    ft_face.set_char_size(font_size * 64)
+    try:
+        ft_face.set_var_design_coords([weight, 0.0])
+    except Exception:
+        pass
+
+    buf = hb.Buffer()
+    buf.add_str(line)
+    buf.guess_segment_properties()
+    hb.shape(hb_font, buf)
+
+    infos = buf.glyph_infos
+    positions = buf.glyph_positions
+
+    total_w = sum(pos.x_advance for pos in positions) // 64
+    start_x = center_x - (total_w // 2)
+
+    cur_x = start_x
+    cur_y = baseline_y
+
+    mode = target_image.mode
+    for info, pos in zip(infos, positions):
+        ft_face.load_glyph(info.codepoint, freetype.FT_LOAD_RENDER)
+        glyph = ft_face.glyph
+        bitmap = glyph.bitmap
+
+        x = cur_x + (pos.x_offset // 64) + glyph.bitmap_left
+        y = cur_y - (pos.y_offset // 64) - glyph.bitmap_top
+
+        if bitmap.width > 0 and bitmap.rows > 0:
+            mask = Image.frombytes("L", (bitmap.width, bitmap.rows), bytes(bitmap.buffer))
+            color_img = Image.new(mode, (bitmap.width, bitmap.rows), color_hex)
+            target_image.paste(color_img, (x, y), mask=mask)
+
+        cur_x += pos.x_advance // 64
+        cur_y -= pos.y_advance // 64
+
+    return total_w

@@ -104,8 +104,8 @@ class Settings(BaseSettings):
         description="Arabic typography choice: 'cairo' (brand modern typography), 'noto_sans' (clean sans-serif), or 'amiri' (calligraphy)."
     )
     STRIP_TASHKEEL_ON_IMAGES: bool = Field(
-        default=True,
-        description="When true, removes conflicting overlapping diacritics on image renders for clean typography, while preserving exact tashkeel in database, verification checksums, and captions."
+        default=False,
+        description="Preserves full Tashkeel (diacritical marks) on graphic renders using OpenType GPOS positioning."
     )
 
     def get_arabic_font_path(self) -> Path:

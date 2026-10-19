@@ -1,5 +1,7 @@
 # Core Application & Automation
 pillow>=10.4.0
+uharfbuzz>=0.39.0
+freetype-py>=2.4.0
 arabic-reshaper>=3.0.0
 python-bidi>=0.4.2
 sqlalchemy>=2.0.30
