@@ -42,22 +42,26 @@ class StorageManager:
         For local development and testing:
         Returns local mock URL or prefix if configured.
         """
-        prefix = settings.STORAGE_PUBLIC_URL_PREFIX or f"http://localhost:{settings.SERVER_PORT}/media"
+        prefix = (settings.STORAGE_PUBLIC_URL_PREFIX or f"http://localhost:{settings.SERVER_PORT}/media").strip()
         url = f"{prefix.rstrip('/')}/{filename}"
         logger.info(f"[Local Storage] Asset available at: {url}")
         return url
 
     def _upload_to_supabase(self, local_path: Path, filename: str, content_type: str) -> str:
         """Uploads asset to Supabase Storage bucket via REST API."""
-        if not settings.STORAGE_ENDPOINT or not settings.STORAGE_SECRET_KEY or not settings.STORAGE_BUCKET:
-            logger.warning("Supabase storage credentials incomplete. Falling back to public prefix.")
-            prefix = settings.STORAGE_PUBLIC_URL_PREFIX or "https://storage.supabase.co"
-            return f"{prefix.rstrip('/')}/{settings.STORAGE_BUCKET}/{filename}"
+        endpoint = (settings.STORAGE_ENDPOINT or "").strip()
+        secret_key = (settings.STORAGE_SECRET_KEY or "").strip()
+        bucket = (settings.STORAGE_BUCKET or "dhikr-media").strip()
 
-        upload_url = f"{settings.STORAGE_ENDPOINT.rstrip('/')}/object/{settings.STORAGE_BUCKET}/{filename}"
+        if not endpoint or not secret_key or not bucket:
+            logger.warning("Supabase storage credentials incomplete. Falling back to public prefix.")
+            prefix = (settings.STORAGE_PUBLIC_URL_PREFIX or "https://storage.supabase.co").strip()
+            return f"{prefix.rstrip('/')}/{bucket}/{filename}"
+
+        upload_url = f"{endpoint.rstrip('/')}/object/{bucket}/{filename}"
         headers = {
-            "Authorization": f"Bearer {settings.STORAGE_SECRET_KEY}",
-            "apikey": settings.STORAGE_SECRET_KEY,
+            "Authorization": f"Bearer {secret_key}",
+            "apikey": secret_key,
             "Content-Type": content_type,
             "x-upsert": "true",
         }
