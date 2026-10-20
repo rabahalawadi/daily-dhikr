@@ -55,3 +55,9 @@ def test_instagrapi_live_publishing_mock(monkeypatch, tmp_path):
     story_id = pub.publish_story("test.jpg")
     assert story_id == "9988776655"
     mock_cl.photo_upload_to_story.assert_called_once()
+
+    # Test share feed post to story
+    mock_cl.media_share_to_story.return_value = mock_media
+    share_id = pub.share_feed_post_to_story("9988776655")
+    assert share_id == "9988776655"
+    mock_cl.media_share_to_story.assert_called_once_with("9988776655")

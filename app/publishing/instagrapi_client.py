@@ -180,5 +180,19 @@ class InstagrapiPublisher:
         logger.info(f"Published story successfully! Media PK: {media_id}")
         return media_id
 
+    def share_feed_post_to_story(self, media_pk: str) -> str:
+        """Reshares an existing feed post to Instagram Story with a tappable sticker."""
+        ready, reason = self.is_live_publishing_ready()
+        if not ready:
+            logger.info(f"[Dry Run] instagrapi.share_feed_post_to_story({media_pk})")
+            return f"dryrun_instagrapi_story_share_{int(time.time())}"
+
+        cl = self.get_client()
+        logger.info(f"Sharing feed post {media_pk} to story via instagrapi...")
+        story = cl.media_share_to_story(media_pk)
+        story_id = str(story.pk)
+        logger.info(f"Shared feed post to story successfully! Story PK: {story_id}")
+        return story_id
+
 
 instagrapi_publisher = InstagrapiPublisher()
