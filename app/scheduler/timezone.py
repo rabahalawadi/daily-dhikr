@@ -63,7 +63,7 @@ DAILY_SLOTS_JORDAN_TIME = [
     },
     {
         "slot_name": "reminder_story",
-        "time_str": "13:00",
+        "time_str": "12:00",
         "pub_type": PublicationType.STORY_POST,
         "category": ContentCategory.DUA,
         "template": "dua_story",

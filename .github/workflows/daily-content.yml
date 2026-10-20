@@ -6,10 +6,10 @@ on:
     # Scheduled daily publication slots:
     # - 07:00 Jordan (04:00 UTC) -> Morning Story
     # - 09:00 Jordan (06:00 UTC) -> Main Feed Post
-    # - 13:00 Jordan (10:00 UTC) -> Reminder Story
+    # - 12:00 Jordan (09:00 UTC) -> Midday Dhuhur Reminder Story
     # - 17:00 Jordan (14:00 UTC) -> Evening Story
     # - 20:00 Jordan (17:00 UTC) -> Daily Note preparation
-    - cron: '0 4,6,10,14,17 * * *'
+    - cron: '0 4,6,9,14,17 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
