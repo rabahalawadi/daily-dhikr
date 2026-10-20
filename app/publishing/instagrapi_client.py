@@ -18,13 +18,41 @@ logger = logging.getLogger(__name__)
 class InstagrapiPublisher:
     """Direct publisher utilizing instagrapi for username/password and session-based publishing."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        dry_run: Optional[bool] = None,
+        publishing_enabled: Optional[bool] = None,
+    ):
         self._client = None
-        self.username = settings.INSTAGRAM_USERNAME
-        self.password = settings.INSTAGRAM_PASSWORD
-        self.session_path = Path(settings.INSTAGRAM_SESSION_PATH)
-        self.dry_run = settings.DRY_RUN
-        self.publishing_enabled = settings.PUBLISHING_ENABLED
+        self._username = username
+        self._password = password
+        self._dry_run = dry_run
+        self._publishing_enabled = publishing_enabled
+
+    @property
+    def username(self) -> Optional[str]:
+        return self._username or settings.INSTAGRAM_USERNAME
+
+    @property
+    def password(self) -> Optional[str]:
+        return self._password or settings.INSTAGRAM_PASSWORD
+
+    @property
+    def session_path(self) -> Path:
+        p = Path(settings.INSTAGRAM_SESSION_PATH)
+        if not p.is_absolute():
+            return settings.PROJECT_ROOT / p
+        return p
+
+    @property
+    def dry_run(self) -> bool:
+        return self._dry_run if self._dry_run is not None else settings.DRY_RUN
+
+    @property
+    def publishing_enabled(self) -> bool:
+        return self._publishing_enabled if self._publishing_enabled is not None else settings.PUBLISHING_ENABLED
 
     def is_live_publishing_ready(self) -> Tuple[bool, Optional[str]]:
         """Checks whether credentials and safety switches allow live publishing."""
