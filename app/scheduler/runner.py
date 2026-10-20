@@ -25,6 +25,7 @@ from app.models import (
     PublicationJob,
     JobStatus,
     PublicationType,
+    ContentCategory,
     AssetType,
     MediaAsset,
     PublicationAttempt,
@@ -140,8 +141,28 @@ class DailyWorkflowRunner:
 
         # For Feed & Story posts:
         try:
-            # Step 6: Generate missing graphic assets
-            template_name = "feed_post" if job.publication_type == PublicationType.FEED_POST else "morning_story"
+            # Step 6: Select appropriate template based on content category and media type
+            if job.publication_type == PublicationType.FEED_POST:
+                if job.content.category == ContentCategory.VERSE_OF_THE_DAY:
+                    template_name = "verse_of_the_day"
+                elif job.content.category == ContentCategory.FRIDAY_SPECIAL:
+                    template_name = "friday_reminder"
+                else:
+                    template_name = "feed_post"
+            else:
+                if job.content.category == ContentCategory.EVENING_DHIKR:
+                    template_name = "evening_story"
+                elif job.content.category == ContentCategory.DUA:
+                    template_name = "dua_story"
+                elif job.content.category == ContentCategory.DAILY_REMINDER:
+                    template_name = "short_reminder"
+                elif job.content.category == ContentCategory.FRIDAY_SPECIAL:
+                    template_name = "friday_reminder"
+                elif job.content.category == ContentCategory.VERSE_OF_THE_DAY:
+                    template_name = "verse_story"
+                else:
+                    template_name = "morning_story"
+
             img_path, checksum, width, height = renderer.render(job.content, template_name=template_name)
 
             # Step 7: Validate graphic dimensions and checksum

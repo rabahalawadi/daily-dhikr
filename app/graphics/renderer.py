@@ -152,13 +152,30 @@ class GraphicRenderer:
         Renders an Instagram graphic for the content item using the specified template.
         Returns: (saved_image_path, sha256_checksum, width, height)
         """
-        # Auto-route to Verse of the Day templates when category is VERSE_OF_THE_DAY
+        # Auto-route template based on content category and target media type
         effective_template = template_name
-        if item.category == ContentCategory.VERSE_OF_THE_DAY:
-            if effective_template in ("feed_post", "default"):
-                effective_template = "verse_of_the_day"
-            elif effective_template in ("morning_story", "story"):
+
+        # For story templates: route to specific category template
+        if effective_template in ("morning_story", "story", "story_post"):
+            if item.category == ContentCategory.EVENING_DHIKR:
+                effective_template = "evening_story"
+            elif item.category == ContentCategory.DUA:
+                effective_template = "dua_story"
+            elif item.category == ContentCategory.DAILY_REMINDER:
+                effective_template = "short_reminder"
+            elif item.category == ContentCategory.FRIDAY_SPECIAL:
+                effective_template = "friday_reminder"
+            elif item.category == ContentCategory.VERSE_OF_THE_DAY:
                 effective_template = "verse_story"
+            elif item.category == ContentCategory.MORNING_DHIKR:
+                effective_template = "morning_story"
+
+        # For feed post templates:
+        elif effective_template in ("feed_post", "default"):
+            if item.category == ContentCategory.VERSE_OF_THE_DAY:
+                effective_template = "verse_of_the_day"
+            elif item.category == ContentCategory.FRIDAY_SPECIAL:
+                effective_template = "friday_reminder"
 
         template: TemplateConfig = get_template(effective_template)
 
