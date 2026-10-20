@@ -194,5 +194,19 @@ class InstagrapiPublisher:
         logger.info(f"Shared feed post to story successfully! Story PK: {story_id}")
         return story_id
 
+    def publish_note(self, text: str) -> str:
+        """Sets the Instagram Note status for the account."""
+        ready, reason = self.is_live_publishing_ready()
+        if not ready:
+            logger.info(f"[Dry Run] instagrapi.publish_note('{text}')")
+            return f"dryrun_instagrapi_note_{int(time.time())}"
+
+        cl = self.get_client()
+        logger.info(f"Setting Instagram Note via instagrapi: {text}")
+        note = cl.create_note(text)
+        note_id = str(note.id)
+        logger.info(f"Set Note successfully! Note ID: {note_id}")
+        return note_id
+
 
 instagrapi_publisher = InstagrapiPublisher()

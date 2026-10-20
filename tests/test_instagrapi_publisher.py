@@ -61,3 +61,11 @@ def test_instagrapi_live_publishing_mock(monkeypatch, tmp_path):
     share_id = pub.share_feed_post_to_story("9988776655")
     assert share_id == "9988776655"
     mock_cl.media_share_to_story.assert_called_once_with("9988776655")
+
+    # Test publish note
+    mock_note = MagicMock()
+    mock_note.id = "1122334455"
+    mock_cl.create_note.return_value = mock_note
+    note_id = pub.publish_note("Test Note")
+    assert note_id == "1122334455"
+    mock_cl.create_note.assert_called_once_with("Test Note")

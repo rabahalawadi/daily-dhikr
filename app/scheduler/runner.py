@@ -128,7 +128,25 @@ class DailyWorkflowRunner:
 
         # Handle Instagram Note specifically
         if job.publication_type == PublicationType.NOTE:
-            # Step 10: Prepare Note draft and mark AWAITING_MANUAL_ACTION
+            if settings.PUBLISHER_TYPE == "instagrapi":
+                from app.publishing.instagrapi_client import instagrapi_publisher
+                from app.publishing.notes import format_note_text
+                note_text = format_note_text(job.content)
+                ready, reason = instagrapi_publisher.is_live_publishing_ready()
+                if ready:
+                    try:
+                        note_id = instagrapi_publisher.publish_note(note_text)
+                        job.status = JobStatus.PUBLISHED
+                        job.instagram_media_id = note_id
+                        job.published_at = datetime.now(timezone.utc)
+                        self.stats["notes_prepared"] += 1
+                        self.stats["details"].append(f"Note published: '{note_text[:30]}...'")
+                        db.commit()
+                        return
+                    except Exception as err:
+                        logger.error(f"Failed to auto-publish Note: {err}")
+
+            # Fallback or official Graph API (where Notes require manual action):
             ok, note_text, reason = prepare_daily_note_job(db, job)
             if ok:
                 self.stats["notes_prepared"] += 1
