@@ -37,6 +37,8 @@ venv.bak/
 *.secrets.json
 *secrets*
 *SECRETS*
+session.json
+*.session.json
 
 # Database
 *.db

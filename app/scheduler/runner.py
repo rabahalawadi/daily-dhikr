@@ -174,7 +174,7 @@ class DailyWorkflowRunner:
             # Generate structured bilingual caption for feed post
             caption = generate_bilingual_caption(job.content)
 
-            # Step 8: Call official Instagram API
+            # Step 8: Call Instagram API (instagrapi direct or official Meta Graph API)
             job.attempt_count += 1
             attempt = PublicationAttempt(
                 job_id=job.id,
@@ -184,16 +184,23 @@ class DailyWorkflowRunner:
             db.add(attempt)
             db.flush()
 
-            if job.publication_type == PublicationType.FEED_POST:
-                container_id = publisher.create_feed_media_container(public_image_url, caption)
+            if settings.PUBLISHER_TYPE == "instagrapi":
+                from app.publishing.instagrapi_client import instagrapi_publisher
+                if job.publication_type == PublicationType.FEED_POST:
+                    media_id = instagrapi_publisher.publish_feed_post(str(img_path), caption)
+                else:
+                    media_id = instagrapi_publisher.publish_story(str(img_path))
             else:
-                container_id = publisher.create_story_media_container(public_image_url)
+                if job.publication_type == PublicationType.FEED_POST:
+                    container_id = publisher.create_feed_media_container(public_image_url, caption)
+                else:
+                    container_id = publisher.create_story_media_container(public_image_url)
 
-            # Poll container status
-            publisher.poll_container_status(container_id)
+                # Poll container status
+                publisher.poll_container_status(container_id)
 
-            # Publish container
-            media_id = publisher.publish_container(container_id)
+                # Publish container
+                media_id = publisher.publish_container(container_id)
 
             # Step 9: Record API result and media ID
             attempt.response_received_at = datetime.now(timezone.utc)

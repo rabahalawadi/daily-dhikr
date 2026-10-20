@@ -70,6 +70,10 @@ jobs:
           TIMEZONE: "Asia/Amman"
           DRY_RUN: ${{ inputs.dry_run == true && 'true' || secrets.DRY_RUN || 'true' }}
           PUBLISHING_ENABLED: ${{ secrets.PUBLISHING_ENABLED || 'false' }}
+          PUBLISHER_TYPE: ${{ secrets.PUBLISHER_TYPE || 'instagrapi' }}
+          INSTAGRAM_SESSION_DATA: ${{ secrets.INSTAGRAM_SESSION_DATA }}
+          INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
+          INSTAGRAM_PASSWORD: ${{ secrets.INSTAGRAM_PASSWORD }}
           INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
           INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
           INSTAGRAM_API_VERSION: "v21.0"

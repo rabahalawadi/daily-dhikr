@@ -59,6 +59,28 @@ class Settings(BaseSettings):
     )
     INSTAGRAM_GRAPH_URL: str = "https://graph.facebook.com"
 
+    # Direct Instagram Login Credentials (instagrapi)
+    PUBLISHER_TYPE: str = Field(
+        default="instagrapi",
+        description="Publishing backend: 'instagrapi' (direct login) or 'official' (Meta Graph API)"
+    )
+    INSTAGRAM_USERNAME: Optional[str] = Field(
+        default=None,
+        description="Instagram username or email."
+    )
+    INSTAGRAM_PASSWORD: Optional[str] = Field(
+        default=None,
+        description="Instagram account password."
+    )
+    INSTAGRAM_SESSION_PATH: str = Field(
+        default="session.json",
+        description="File path to store or load the serialized instagrapi session."
+    )
+    INSTAGRAM_SESSION_DATA: Optional[str] = Field(
+        default=None,
+        description="Serialized session JSON string (useful for GitHub Secrets)."
+    )
+
     # Persistent Object Storage (Required by Instagram Container Creation)
     STORAGE_BACKEND: str = Field(
         default="local",
