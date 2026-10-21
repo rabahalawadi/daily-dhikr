@@ -88,10 +88,32 @@ DAILY_SLOTS_JORDAN_TIME = [
 def calculate_slot_datetimes(target_date: Optional[date] = None) -> List[Dict]:
     """
     Computes local and UTC datetimes for all daily slots on the target date.
-    Correctly accounts for daylight-saving rules via zoneinfo.
+    When settings.SCHEDULE_MODE is 'prayer_times' (default), aligns slots dynamically
+    with Islamic prayer times (Fajr, Duha, Dhuhr, Asr, Isha).
+    Otherwise, uses fixed standard Jordan time slots.
     """
     tz = get_configured_timezone()
     today = target_date or get_current_local_time().date()
+
+    if getattr(settings, "SCHEDULE_MODE", "prayer_times") == "prayer_times":
+        try:
+            from app.scheduler.prayer_times import get_prayer_schedule_slots
+            return get_prayer_schedule_slots(
+                target_date=today,
+                tz=tz,
+                city=settings.PRAYER_CITY,
+                country=settings.PRAYER_COUNTRY,
+                lat=settings.PRAYER_LATITUDE,
+                lon=settings.PRAYER_LONGITUDE,
+                method=settings.PRAYER_METHOD,
+                fajr_offset=settings.FAJR_OFFSET_MINUTES,
+                duha_offset_after_sunrise=settings.DUHA_OFFSET_MINUTES_AFTER_SUNRISE,
+                dhuhr_offset=settings.DHUHR_OFFSET_MINUTES,
+                asr_offset=settings.ASR_OFFSET_MINUTES,
+                isha_offset=settings.ISHA_OFFSET_MINUTES,
+            )
+        except Exception as e:
+            logger.warning(f"Error computing prayer times schedule: {e}. Falling back to fixed slots.")
 
     slots = []
     for slot_def in DAILY_SLOTS_JORDAN_TIME:

@@ -46,14 +46,14 @@ A production-ready, fully automated Instagram publishing system dedicated to dai
    - Strictly enforces authenticity: Quran verses require Surah & Ayah citations; Hadith require recognized collection references and authentic gradings (Sahih, Hasan).
    - Prohibits fabricated, weak, or unverified claims.
    - Clearly marked `DEMO` records are strictly barred from live publication.
-6. **Timezone-Aware Jordan Scheduling (`Asia/Amman`)**:
-   - Accounts for timezone rules dynamically using Python's `zoneinfo`.
-   - UTC cron execution aligned to Jordan time slots:
-     - 07:00 Jordan (04:00 UTC): Morning Story
-     - 09:00 Jordan (06:00 UTC): Main Feed Post
-     - 13:00 Jordan (10:00 UTC): Reminder Story
-     - 17:00 Jordan (14:00 UTC): Evening Story
-     - 20:00 Jordan (17:00 UTC): Note Preparation
+6. **Prayer-Times Aware Scheduling (`Asia/Amman`)**:
+   - Aligns publishing dynamically with official Islamic prayer times (via Aladhan API with offline astronomical solar calculations fallback):
+     - **Fajr prayer**: Morning Story (Adhkar al-Sabah / أذكار الصباح)
+     - **Duha (mid-morning)**: Main Feed Post / Verse of the Day (1080 × 1350)
+     - **Dhuhr prayer**: Midday Supplication & Dhikr Story
+     - **Asr prayer**: Evening Story (Adhkar al-Masaa' / أذكار المساء, the Sunnah start of evening remembrance)
+     - **Isha prayer**: Daily Instagram Note draft preparation
+   - Accounts for solar variation and timezone rules dynamically using Python's `zoneinfo`.
 7. **Idempotency & Duplicate Prevention**:
    - Concurrency group in GitHub Actions prevents overlapping workflow runs.
    - Atomic database status locks (`UPDATE publication_jobs SET status='PROCESSING' WHERE status IN ('READY', 'SCHEDULED')`) ensure exactly-once processing.

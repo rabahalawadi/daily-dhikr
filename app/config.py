@@ -34,6 +34,52 @@ class Settings(BaseSettings):
         description="Target timezone name (e.g. Asia/Amman). Never hardcoded as a fixed offset."
     )
 
+    # Scheduling Mode & Prayer Times Configuration
+    SCHEDULE_MODE: str = Field(
+        default="prayer_times",
+        description="Scheduling mode: 'prayer_times' (aligned with Fajr, Duha, Dhuhr, Asr, Isha) or 'fixed_slots'"
+    )
+    PRAYER_CITY: str = Field(
+        default="Amman",
+        description="City for Islamic prayer times calculation."
+    )
+    PRAYER_COUNTRY: str = Field(
+        default="Jordan",
+        description="Country for Islamic prayer times calculation."
+    )
+    PRAYER_LATITUDE: float = Field(
+        default=31.9539,
+        description="Geographic latitude for astronomical prayer calculation."
+    )
+    PRAYER_LONGITUDE: float = Field(
+        default=35.9106,
+        description="Geographic longitude for astronomical prayer calculation."
+    )
+    PRAYER_METHOD: int = Field(
+        default=4,
+        description="Calculation method: 4=Umm Al-Qura, 5=Egyptian General Authority, 3=Muslim World League."
+    )
+    FAJR_OFFSET_MINUTES: int = Field(
+        default=0,
+        description="Offset in minutes relative to Fajr prayer (e.g. 0 for adhan time, +10 for after prayer)."
+    )
+    DUHA_OFFSET_MINUTES_AFTER_SUNRISE: int = Field(
+        default=90,
+        description="Minutes after sunrise to publish daily feed reminder (Duha prayer time)."
+    )
+    DHUHR_OFFSET_MINUTES: int = Field(
+        default=0,
+        description="Offset in minutes relative to Dhuhr prayer."
+    )
+    ASR_OFFSET_MINUTES: int = Field(
+        default=0,
+        description="Offset in minutes relative to Asr prayer (start of Evening Adhkar)."
+    )
+    ISHA_OFFSET_MINUTES: int = Field(
+        default=0,
+        description="Offset in minutes relative to Isha prayer."
+    )
+
     # Safety & Publishing Controls
     DRY_RUN: bool = Field(
         default=True,

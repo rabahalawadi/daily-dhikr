@@ -205,13 +205,13 @@ The primary scheduled workflow is `.github/workflows/daily-content.yml`.
 3. Check the Instagram profile: Feed post and story should appear immediately.
 4. Verify database: `publication_jobs.status` transitions to `PUBLISHED` with recorded `instagram_media_id`.
 
-#### Step 5.3: Scheduled Daily Slots (Asia/Amman Time)
-GitHub Actions triggers on the following UTC schedule matching Jordan Time:
-* **07:00 Jordan (04:00 UTC)**: Morning Story (`morning_story` template)
-* **09:00 Jordan (06:00 UTC)**: Main Feed Post (`feed_post` or `verse_of_the_day`)
-* **13:00 Jordan (10:00 UTC)**: Reminder Story (`dua_story`)
-* **17:00 Jordan (14:00 UTC)**: Evening Story (`evening_story`)
-* **20:00 Jordan (17:00 UTC)**: Note Preparation (`AWAITING_MANUAL_ACTION`)
+#### Step 5.3: Scheduled Daily Slots Aligned with Islamic Prayer Times (Asia/Amman)
+GitHub Actions triggers periodically at :15 and :45 past the hour (`15,45 1-18 * * *`), automatically capturing prayer slots dynamically throughout the year:
+* **Fajr prayer (~05:20 Amman)**: Morning Story (`morning_story` template / Adhkar al-Sabah)
+* **Duha mid-morning (~08:15 Amman)**: Main Feed Post (`feed_post` or `verse_of_the_day`)
+* **Dhuhr prayer (~12:20 Amman)**: Reminder Story (`dua_story` / Midday Supplication)
+* **Asr prayer (~15:30 Amman)**: Evening Story (`evening_story` / Adhkar al-Masaa', the Sunnah start of evening remembrance)
+* **Isha prayer (~19:25 Amman)**: Note Preparation (`daily_note` / `AWAITING_MANUAL_ACTION`)
 
 ---
 

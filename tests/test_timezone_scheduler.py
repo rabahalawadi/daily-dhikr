@@ -5,6 +5,7 @@ Tests for Asia/Amman timezone handling, daylight saving transitions, and due slo
 from datetime import date, datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 import pytest
+from app.config import settings
 from app.scheduler.timezone import (
     get_configured_timezone,
     get_current_local_time,
@@ -22,8 +23,9 @@ def test_timezone_is_zone_aware():
     assert now.tzinfo is not None
 
 
-def test_daily_slots_calculation():
-    """Ensures all 5 daily slots are calculated for a given date with UTC translations."""
+def test_daily_slots_calculation_fixed_slots():
+    """Ensures all 5 daily slots are calculated in fixed slots mode with UTC translations."""
+    settings.SCHEDULE_MODE = "fixed_slots"
     target = date(2026, 10, 19)
     slots = calculate_slot_datetimes(target)
 
@@ -39,6 +41,18 @@ def test_daily_slots_calculation():
     morning_slot = next(s for s in slots if s["slot_name"] == "morning_story")
     assert morning_slot["scheduled_local"].hour == 7
     assert morning_slot["scheduled_utc"].hour == 4
+
+
+def test_daily_slots_calculation_prayer_times():
+    """Ensures all 5 daily slots are calculated in prayer times mode with Fajr alignment."""
+    settings.SCHEDULE_MODE = "prayer_times"
+    target = date(2026, 10, 19)
+    slots = calculate_slot_datetimes(target)
+
+    assert len(slots) == 5
+    morning_slot = next(s for s in slots if s["slot_name"] == "morning_story")
+    assert morning_slot["prayer_name"] == "Fajr"
+    assert morning_slot["scheduled_local"].hour == 5
 
 
 def test_catch_up_window_due_jobs(db_session, sample_approved_content):

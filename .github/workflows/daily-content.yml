@@ -3,13 +3,14 @@ name: Daily Dhikr Content Automation
 on:
   schedule:
     # Jordan Time is UTC+3 (Asia/Amman) year-round.
-    # Scheduled daily publication slots:
-    # - 07:00 Jordan (04:00 UTC) -> Morning Story
-    # - 09:00 Jordan (06:00 UTC) -> Main Feed Post
-    # - 12:00 Jordan (09:00 UTC) -> Midday Dhuhur Reminder Story
-    # - 17:00 Jordan (14:00 UTC) -> Evening Story
-    # - 20:00 Jordan (17:00 UTC) -> Daily Note preparation
-    - cron: '0 4,6,9,14,17 * * *'
+    # Runs at :15 and :45 past each hour during active hours (01:00 to 18:00 UTC = 04:00 to 21:00 Jordan Time).
+    # This automatically captures all Islamic prayer times year-round with zero manual time adjustments:
+    # - Fajr (~05:20)     -> Morning Story (Morning Adhkar / أذكار الصباح)
+    # - Duha (~08:15)     -> Feed Post (Daily Reminder / Verse of the Day)
+    # - Dhuhr (~12:20)    -> Reminder Story (Midday Supplication)
+    # - Asr (~15:30)      -> Evening Story (Evening Adhkar / أذكار المساء)
+    # - Isha (~19:25)     -> Daily Note (Night Reflection / Instagram Note)
+    - cron: '15,45 1-18 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -83,6 +84,14 @@ jobs:
           STORAGE_SECRET_KEY: ${{ secrets.STORAGE_SECRET_KEY }}
           STORAGE_PUBLIC_URL_PREFIX: ${{ secrets.STORAGE_PUBLIC_URL_PREFIX }}
           NOTIFICATION_WEBHOOK_URL: ${{ secrets.NOTIFICATION_WEBHOOK_URL }}
+          SCHEDULE_MODE: ${{ secrets.SCHEDULE_MODE || 'prayer_times' }}
+          PRAYER_CITY: ${{ secrets.PRAYER_CITY || 'Amman' }}
+          PRAYER_COUNTRY: ${{ secrets.PRAYER_COUNTRY || 'Jordan' }}
+          FAJR_OFFSET_MINUTES: ${{ secrets.FAJR_OFFSET_MINUTES || '0' }}
+          DUHA_OFFSET_MINUTES_AFTER_SUNRISE: ${{ secrets.DUHA_OFFSET_MINUTES_AFTER_SUNRISE || '90' }}
+          DHUHR_OFFSET_MINUTES: ${{ secrets.DHUHR_OFFSET_MINUTES || '0' }}
+          ASR_OFFSET_MINUTES: ${{ secrets.ASR_OFFSET_MINUTES || '0' }}
+          ISHA_OFFSET_MINUTES: ${{ secrets.ISHA_OFFSET_MINUTES || '0' }}
         run: |
           ARGS=""
           if [ "${{ inputs.target_date }}" != "" ]; then
