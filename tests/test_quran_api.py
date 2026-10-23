@@ -16,16 +16,26 @@ from app.content.captions import generate_bilingual_caption, format_source_citat
 
 
 def test_normalize_quranic_text():
-    """Verifies that Uthmani orthography marks are normalized without losing any Tashkeel."""
-    raw = "فَإِنَّ مَعَ ٱلۡعُسۡرِ یُسۡرًا"
+    """Verifies that authentic raw Uthmani orthography marks and Waqf signs are preserved."""
+    raw = "فَإِنَّ مَعَ ٱلۡعُسۡرِ یُسۡرًاۖ"
     normalized = normalize_quranic_text(raw)
 
-    # Quranic Sukoon (\u06E1) must become standard Sukoon (\u0652)
-    assert "\u06E1" not in normalized
-    assert "\u0652" in normalized or "سْ" in normalized
+    # Authentic Quranic Sukoon (\u06E1) must be preserved for Uthmanic font
+    assert "\u06E1" in normalized
+    # Authentic Waqf mark (\u06D6 صلى) must be preserved
+    assert "\u06D6" in normalized
     # Farsi Yeh (\u06CC) must become Arabic Yeh (\u064A)
     assert "\u06CC" not in normalized
-    assert "يُسْرًا" in normalized
+    assert "يُسۡرًاۖ" in normalized
+
+
+def test_fetch_verse_range():
+    """Verifies fetching a paired verse range (e.g. 94:5-6) joined by authentic Ayah sign."""
+    data = fetch_verse(94, (5, 6))
+    assert data["chapter"] == 94
+    assert data["reference"] == "94:5-6"
+    assert " ۝ " in data["arabic_text"]
+    assert "Ash-Sharh" in data["source_citation"]
 
 
 def test_surah_dictionary_coverage():
@@ -57,7 +67,7 @@ def test_fetch_verse_data():
     assert data["chapter"] == 94
     assert data["verse"] == 5
     assert data["surah_name_en"] == "Ash-Sharh"
-    assert "يُسْرًا" in data["arabic_text"]
+    assert "عُسۡرِ" in data["arabic_text"] or "عُسْرِ" in data["arabic_text"]
     assert "hardship" in data["english_meaning"].lower()
 
 

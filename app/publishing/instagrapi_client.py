@@ -166,6 +166,21 @@ class InstagrapiPublisher:
         logger.info(f"Published feed post successfully! Media PK: {media_id}")
         return media_id
 
+    def publish_carousel(self, image_paths: List[str], caption: str) -> str:
+        """Publishes a multi-image carousel (album) post to Instagram feed."""
+        ready, reason = self.is_live_publishing_ready()
+        if not ready:
+            logger.info(f"[Dry Run] instagrapi.publish_carousel({len(image_paths)} images) - Caption len: {len(caption)}")
+            return f"dryrun_instagrapi_carousel_{int(time.time())}"
+
+        cl = self.get_client()
+        logger.info(f"Publishing carousel to Instagram via instagrapi with {len(image_paths)} images...")
+        paths = [Path(p) for p in image_paths]
+        media = cl.album_upload(paths=paths, caption=caption)
+        media_id = str(media.pk)
+        logger.info(f"Published carousel successfully! Media PK: {media_id}")
+        return media_id
+
     def publish_story(self, image_path: str) -> str:
         """Publishes a photo to Instagram Story."""
         ready, reason = self.is_live_publishing_ready()
@@ -180,7 +195,7 @@ class InstagrapiPublisher:
         logger.info(f"Published story successfully! Media PK: {media_id}")
         return media_id
 
-    def share_feed_post_to_story(self, media_pk: str) -> str:
+    def share_feed_post_to_story(self, media_pk: str, background_path: Optional[str] = None) -> str:
         """Reshares an existing feed post to Instagram Story with a tappable sticker."""
         ready, reason = self.is_live_publishing_ready()
         if not ready:
@@ -189,7 +204,11 @@ class InstagrapiPublisher:
 
         cl = self.get_client()
         logger.info(f"Sharing feed post {media_pk} to story via instagrapi...")
-        story = cl.media_share_to_story(media_pk)
+        bg = Path(background_path) if background_path and Path(background_path).exists() else None
+        if bg:
+            story = cl.media_share_to_story(media_pk, background=bg)
+        else:
+            story = cl.media_share_to_story(media_pk)
         story_id = str(story.pk)
         logger.info(f"Shared feed post to story successfully! Story PK: {story_id}")
         return story_id

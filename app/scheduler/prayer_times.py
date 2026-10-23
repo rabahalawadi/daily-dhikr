@@ -272,12 +272,12 @@ def get_prayer_schedule_slots(
         },
         {
             "slot_name": "feed_post",
-            "prayer_name": "Duha",
-            "time_obj": actual_duha,
+            "prayer_name": "Jumuah_Morning" if target_date.weekday() == 4 else "Duha",
+            "time_obj": dtime(6, 0) if target_date.weekday() == 4 else actual_duha,
             "pub_type": PublicationType.FEED_POST,
-            "category": ContentCategory.DAILY_REMINDER,
-            "template": "feed_post",
-            "description": "Daily Reminder / Verse of the Day at Duha (mid-morning)",
+            "category": ContentCategory.FRIDAY_SPECIAL if target_date.weekday() == 4 else ContentCategory.VERSE_OF_THE_DAY,
+            "template": "surah_kahf_carousel" if target_date.weekday() == 4 else "verse_of_the_day",
+            "description": "Friday Special / Surat Al-Kahf at 06:00 AM" if target_date.weekday() == 4 else "Verse of the Day at Duha",
         },
         {
             "slot_name": "reminder_story",

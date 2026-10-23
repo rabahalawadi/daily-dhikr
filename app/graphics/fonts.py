@@ -153,9 +153,24 @@ def load_font(
     return ImageFont.load_default()
 
 
-def get_arabic_font(size: int = 56, weight: int = 450) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Returns the primary verified Arabic font (Cairo) with balanced Medium weight."""
-    return load_font(settings.get_arabic_font_path(), size, weight=weight)
+def get_arabic_font(
+    size: int = 56,
+    weight: int = 450,
+    font_path: Optional[Path] = None,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Returns the primary verified Arabic font with balanced Medium weight."""
+    p = font_path or settings.get_arabic_font_path()
+    return load_font(p, size, weight=weight)
+
+
+def get_uthmanic_font(size: int = 56, weight: int = 450) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Returns the verified Uthmanic Quran script font."""
+    return load_font(settings.get_uthmanic_font_path(), size, weight=weight)
+
+
+def get_cairo_font(size: int = 56, weight: int = 450) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Returns the Cairo Arabic font (used for Hadith, Adhkar, and general text)."""
+    return load_font(settings.get_cairo_font_path(), size, weight=weight)
 
 
 def get_english_font(size: int = 36, weight: int = 600) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:

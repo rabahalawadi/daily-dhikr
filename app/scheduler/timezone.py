@@ -58,8 +58,8 @@ DAILY_SLOTS_JORDAN_TIME = [
         "slot_name": "feed_post",
         "time_str": "09:00",
         "pub_type": PublicationType.FEED_POST,
-        "category": ContentCategory.DAILY_REMINDER,
-        "template": "feed_post",
+        "category": ContentCategory.VERSE_OF_THE_DAY,
+        "template": "verse_of_the_day",
     },
     {
         "slot_name": "reminder_story",
@@ -91,9 +91,11 @@ def calculate_slot_datetimes(target_date: Optional[date] = None) -> List[Dict]:
     When settings.SCHEDULE_MODE is 'prayer_times' (default), aligns slots dynamically
     with Islamic prayer times (Fajr, Duha, Dhuhr, Asr, Isha).
     Otherwise, uses fixed standard Jordan time slots.
+    On Fridays (Jumu'ah), adapts the feed post to 06:00 AM FRIDAY_SPECIAL (Surat Al-Kahf).
     """
     tz = get_configured_timezone()
     today = target_date or get_current_local_time().date()
+    is_friday = today.weekday() == 4
 
     if getattr(settings, "SCHEDULE_MODE", "prayer_times") == "prayer_times":
         try:
@@ -117,12 +119,23 @@ def calculate_slot_datetimes(target_date: Optional[date] = None) -> List[Dict]:
 
     slots = []
     for slot_def in DAILY_SLOTS_JORDAN_TIME:
-        hour, minute = map(int, slot_def["time_str"].split(":"))
+        slot = dict(slot_def)
+        if slot["slot_name"] == "feed_post":
+            if is_friday:
+                slot["time_str"] = "06:00"
+                slot["category"] = ContentCategory.FRIDAY_SPECIAL
+                slot["template"] = "surah_kahf_carousel"
+            else:
+                slot["time_str"] = "09:00"
+                slot["category"] = ContentCategory.VERSE_OF_THE_DAY
+                slot["template"] = "verse_of_the_day"
+
+        hour, minute = map(int, slot["time_str"].split(":"))
         local_dt = datetime.combine(today, dtime(hour=hour, minute=minute), tzinfo=tz)
         utc_dt = local_dt.astimezone(timezone.utc)
 
         slots.append({
-            **slot_def,
+            **slot,
             "scheduled_local": local_dt,
             "scheduled_utc": utc_dt,
         })

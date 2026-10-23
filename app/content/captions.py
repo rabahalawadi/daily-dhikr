@@ -66,6 +66,37 @@ def generate_bilingual_caption(
 
     Ensures result stays within Instagram's 2,200 character limit.
     """
+    # Friday Special (Surah Al-Kahf) is published in Arabic only
+    if item.category == ContentCategory.FRIDAY_SPECIAL:
+        citation = format_source_citation(item)
+        body = item.caption_ar.strip() if item.caption_ar else item.arabic_text.strip()
+        parts = [
+            "﷽",
+            "",
+            body,
+            "",
+            f"✦ المرجع: {citation}",
+            "",
+            "─" * 20,
+            "اللَّهُمَّ صَلِّ وَسَلِّمْ وَبَارِكْ عَلَى نَبِيِّنَا مُحَمَّدٍ وَعَلَى آلِهِ وَصَحْبِهِ أَجْمَعِينَ.",
+        ]
+        if include_hashtags:
+            friday_tags = [
+                "#سورة_الكهف",
+                "#يوم_الجمعة",
+                "#الجمعة",
+                "#سورة_الكهف_نور_ما_بين_الجمعتين",
+                "#قرآن_كريم",
+                "#تلاوة",
+                "#ذكر",
+                "#DailyDhikr",
+            ]
+            parts.extend(["", " ".join(friday_tags)])
+        caption = "\n".join(parts)
+        if len(caption) > MAX_INSTAGRAM_CAPTION_LENGTH:
+            caption = caption[:MAX_INSTAGRAM_CAPTION_LENGTH - 3] + "..."
+        return caption
+
     # If custom stored captions already exist, use them
     if item.caption_ar and item.caption_en:
         arabic_part = item.caption_ar.strip()

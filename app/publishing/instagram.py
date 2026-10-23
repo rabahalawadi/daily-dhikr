@@ -7,7 +7,7 @@ safe container publishing, container status reconciliation, and dry-run simulati
 
 import logging
 import time
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 import httpx
 from app.config import settings
 from app.publishing.retry import (
@@ -112,6 +112,35 @@ class InstagramPublisher:
         }
 
         return self._send_container_request(url, payload)
+
+    def create_carousel_media_container(self, image_urls: List[str], caption: str) -> str:
+        """
+        Creates a multi-image carousel container on Instagram (Meta Graph API).
+        1. Creates individual item containers for each image.
+        2. Creates carousel container linking all children with caption.
+        """
+        ready, reason = self.is_live_publishing_ready()
+        if not ready:
+            logger.info(f"[Dry Run] create_carousel_media_container({len(image_urls)} images) - Caption len: {len(caption)}")
+            return f"dryrun_container_carousel_{int(time.time())}"
+
+        child_ids = []
+        for url in image_urls:
+            item_payload = {
+                "image_url": url,
+                "is_carousel_item": "true",
+                "access_token": self.access_token,
+            }
+            child_id = self._send_container_request(f"{self.base_url}/{self.account_id}/media", item_payload)
+            child_ids.append(child_id)
+
+        carousel_payload = {
+            "media_type": "CAROUSEL",
+            "children": ",".join(child_ids),
+            "caption": caption,
+            "access_token": self.access_token,
+        }
+        return self._send_container_request(f"{self.base_url}/{self.account_id}/media", carousel_payload)
 
     def create_story_media_container(self, image_url: str) -> str:
         """

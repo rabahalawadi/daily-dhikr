@@ -159,87 +159,128 @@ class DailyWorkflowRunner:
 
         # For Feed & Story posts:
         try:
-            # Step 6: Select appropriate template based on content category and media type
-            if job.publication_type == PublicationType.FEED_POST:
-                if job.content.category == ContentCategory.VERSE_OF_THE_DAY:
-                    template_name = "verse_of_the_day"
-                elif job.content.category == ContentCategory.FRIDAY_SPECIAL:
-                    template_name = "friday_reminder"
-                else:
-                    template_name = "feed_post"
-            else:
-                if job.content.category == ContentCategory.EVENING_DHIKR:
-                    template_name = "evening_story"
-                elif job.content.category == ContentCategory.DUA:
-                    template_name = "dua_story"
-                elif job.content.category == ContentCategory.DAILY_REMINDER:
-                    template_name = "short_reminder"
-                elif job.content.category == ContentCategory.FRIDAY_SPECIAL:
-                    template_name = "friday_reminder"
-                elif job.content.category == ContentCategory.VERSE_OF_THE_DAY:
-                    template_name = "verse_story"
-                else:
-                    template_name = "morning_story"
-
-            img_path, checksum, width, height = renderer.render(job.content, template_name=template_name)
-
-            # Step 7: Validate graphic dimensions and checksum
-            expected_h = 1350 if job.publication_type == PublicationType.FEED_POST else 1920
-            if width != 1080 or height != expected_h:
-                raise ValueError(f"Invalid image dimensions: {width}x{height}, expected 1080x{expected_h}")
-
-            # Upload to object storage to obtain public URL
-            public_image_url = storage_manager.upload_file(img_path)
-
-            # Record or reuse MediaAsset
-            media_asset = (
-                db.query(MediaAsset)
-                .filter(MediaAsset.checksum == checksum)
-                .first()
+            # Check if this is the Friday Surat Al-Kahf carousel post
+            is_kahf_carousel = (
+                job.publication_type == PublicationType.FEED_POST
+                and job.content.category == ContentCategory.FRIDAY_SPECIAL
             )
-            if not media_asset:
-                media_asset = MediaAsset(
-                    content_id=job.content.id,
-                    asset_type=AssetType.FEED_IMAGE if job.publication_type == PublicationType.FEED_POST else AssetType.STORY_IMAGE,
-                    storage_url=public_image_url,
-                    local_path=str(img_path),
-                    width=width,
-                    height=height,
-                    checksum=checksum,
+
+            if is_kahf_carousel:
+                from app.content.surah_kahf import render_kahf_carousel_pages
+                carousel_paths = render_kahf_carousel_pages()
+                caption = generate_bilingual_caption(job.content)
+
+                public_urls = []
+                for p in carousel_paths:
+                    pub_url = storage_manager.upload_file(p)
+                    public_urls.append(pub_url)
+
+                job.attempt_count += 1
+                attempt = PublicationAttempt(
+                    job_id=job.id,
+                    attempt_number=job.attempt_count,
+                    request_started_at=datetime.now(timezone.utc),
                 )
-                db.add(media_asset)
+                db.add(attempt)
                 db.flush()
 
-            # Generate structured bilingual caption for feed post
-            caption = generate_bilingual_caption(job.content)
-
-            # Step 8: Call Instagram API (instagrapi direct or official Meta Graph API)
-            job.attempt_count += 1
-            attempt = PublicationAttempt(
-                job_id=job.id,
-                attempt_number=job.attempt_count,
-                request_started_at=datetime.now(timezone.utc),
-            )
-            db.add(attempt)
-            db.flush()
-
-            if settings.PUBLISHER_TYPE == "instagrapi":
-                from app.publishing.instagrapi_client import instagrapi_publisher
-                if job.publication_type == PublicationType.FEED_POST:
-                    media_id = instagrapi_publisher.publish_feed_post(str(img_path), caption)
+                if settings.PUBLISHER_TYPE == "instagrapi":
+                    from app.publishing.instagrapi_client import instagrapi_publisher
+                    from app.content.surah_kahf import render_kahf_story_background
+                    media_id = instagrapi_publisher.publish_carousel([str(p) for p in carousel_paths], caption)
+                    try:
+                        bg_path = render_kahf_story_background()
+                        instagrapi_publisher.share_feed_post_to_story(media_id, background_path=str(bg_path))
+                        logger.info("Automatically shared Friday Al-Kahf carousel post to Story.")
+                    except Exception as story_err:
+                        logger.warning(f"Failed to auto-share carousel post to Story: {story_err}")
                 else:
-                    media_id = instagrapi_publisher.publish_story(str(img_path))
+                    container_id = publisher.create_carousel_media_container(public_urls, caption)
+                    publisher.poll_container_status(container_id)
+                    media_id = publisher.publish_container(container_id)
+
             else:
+                # Step 6: Select appropriate template based on content category and media type
                 if job.publication_type == PublicationType.FEED_POST:
-                    container_id = publisher.create_feed_media_container(public_image_url, caption)
+                    if job.content.category == ContentCategory.VERSE_OF_THE_DAY:
+                        template_name = "verse_of_the_day"
+                    elif job.content.category == ContentCategory.FRIDAY_SPECIAL:
+                        template_name = "friday_reminder"
+                    else:
+                        template_name = "feed_post"
                 else:
-                    container_id = publisher.create_story_media_container(public_image_url)
+                    if job.content.category == ContentCategory.EVENING_DHIKR:
+                        template_name = "evening_story"
+                    elif job.content.category == ContentCategory.DUA:
+                        template_name = "dua_story"
+                    elif job.content.category == ContentCategory.DAILY_REMINDER:
+                        template_name = "short_reminder"
+                    elif job.content.category == ContentCategory.FRIDAY_SPECIAL:
+                        template_name = "friday_reminder"
+                    elif job.content.category == ContentCategory.VERSE_OF_THE_DAY:
+                        template_name = "verse_story"
+                    else:
+                        template_name = "morning_story"
 
-                # Poll container status
-                publisher.poll_container_status(container_id)
+                img_path, checksum, width, height = renderer.render(job.content, template_name=template_name)
 
-                # Publish container
-                media_id = publisher.publish_container(container_id)
+                # Step 7: Validate graphic dimensions and checksum
+                expected_h = 1350 if job.publication_type == PublicationType.FEED_POST else 1920
+                if width != 1080 or height != expected_h:
+                    raise ValueError(f"Invalid image dimensions: {width}x{height}, expected 1080x{expected_h}")
+
+                # Upload to object storage to obtain public URL
+                public_image_url = storage_manager.upload_file(img_path)
+
+                # Record or reuse MediaAsset
+                media_asset = (
+                    db.query(MediaAsset)
+                    .filter(MediaAsset.checksum == checksum)
+                    .first()
+                )
+                if not media_asset:
+                    media_asset = MediaAsset(
+                        content_id=job.content.id,
+                        asset_type=AssetType.FEED_IMAGE if job.publication_type == PublicationType.FEED_POST else AssetType.STORY_IMAGE,
+                        storage_url=public_image_url,
+                        local_path=str(img_path),
+                        width=width,
+                        height=height,
+                        checksum=checksum,
+                    )
+                    db.add(media_asset)
+                    db.flush()
+
+                # Generate structured bilingual caption for feed post
+                caption = generate_bilingual_caption(job.content)
+
+                # Step 8: Call Instagram API (instagrapi direct or official Meta Graph API)
+                job.attempt_count += 1
+                attempt = PublicationAttempt(
+                    job_id=job.id,
+                    attempt_number=job.attempt_count,
+                    request_started_at=datetime.now(timezone.utc),
+                )
+                db.add(attempt)
+                db.flush()
+
+                if settings.PUBLISHER_TYPE == "instagrapi":
+                    from app.publishing.instagrapi_client import instagrapi_publisher
+                    if job.publication_type == PublicationType.FEED_POST:
+                        media_id = instagrapi_publisher.publish_feed_post(str(img_path), caption)
+                    else:
+                        media_id = instagrapi_publisher.publish_story(str(img_path))
+                else:
+                    if job.publication_type == PublicationType.FEED_POST:
+                        container_id = publisher.create_feed_media_container(public_image_url, caption)
+                    else:
+                        container_id = publisher.create_story_media_container(public_image_url)
+
+                    # Poll container status
+                    publisher.poll_container_status(container_id)
+
+                    # Publish container
+                    media_id = publisher.publish_container(container_id)
 
             # Step 9: Record API result and media ID
             attempt.response_received_at = datetime.now(timezone.utc)

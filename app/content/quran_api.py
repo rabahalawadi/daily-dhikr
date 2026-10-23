@@ -9,7 +9,7 @@ import json
 import logging
 import re
 import urllib.request
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -152,69 +152,68 @@ SURAHS: Dict[int, Dict[str, str]] = {
 }
 
 
-# Curated collection of small, powerful, high-impact verses
-CURATED_SHORT_VERSES: List[Tuple[int, int]] = [
-    (94, 5),   # Ash-Sharh: For indeed, with hardship [will be] ease
-    (94, 6),   # Ash-Sharh: Indeed, with hardship [will be] ease
-    (93, 5),   # Ad-Duha: And your Lord is going to give you, and you will be satisfied
-    (55, 60),  # Ar-Rahman: Is the reward for good [anything] but good?
-    (68, 4),   # Al-Qalam: And indeed, you are of a great moral character
-    (15, 99),  # Al-Hijr: And worship your Lord until there comes to you the certainty
-    (87, 1),   # Al-A'la: Exalt the name of your Lord, the Most High
-    (87, 14),  # Al-A'la: He has certainly succeeded who purifies himself
-    (87, 15),  # Al-A'la: And mentions the name of his Lord and prays
-    (88, 21),  # Al-Ghashiyah: So remind; you are only a reminder
-    (91, 9),   # Ash-Shams: He has succeeded who purifies it
-    (95, 4),   # At-Tin: We have certainly created man in the best of stature
-    (1, 5),    # Al-Fatihah: It is You we worship and You we ask for help
-    (1, 6),    # Al-Fatihah: Guide us to the straight path
-    (112, 1),  # Al-Ikhlas: Say, 'He is Allah, [who is] One'
-    (112, 2),  # Al-Ikhlas: Allah, the Eternal Refuge
-    (108, 1),  # Al-Kawthar: Indeed, We have granted you al-Kawthar
-    (108, 2),  # Al-Kawthar: So pray to your Lord and sacrifice
-    (103, 1),  # Al-Asr: By time
-    (103, 2),  # Al-Asr: Indeed, mankind is in loss
-    (20, 114), # Taha: My Lord, increase me in knowledge
-    (2, 152),  # Al-Baqarah: So remember Me; I will remember you
-    (14, 7),   # Ibrahim: If you are grateful, I will surely increase you
+CuratedVerseSpec = Union[Tuple[int, int], Tuple[int, Tuple[int, int]]]
+
+# Curated collection of profound, authentic Quranic verses strictly verified for:
+# 1. Waqf Hasan & Waqf Taam (الوقف الحسن والتام): Every verse or verse-pair is semantically and
+#    theologically complete with zero dangling conditions, missing antecedents, or conflicting clauses.
+# 2. Raw Uthmanic Script: Verbatim Madani Mushaf orthography including authentic Tajweed pause marks.
+CURATED_SHORT_VERSES: List[CuratedVerseSpec] = [
+    (2, 186),         # Al-Baqarah: When My servants ask concerning Me, I am near...
+    (39, 53),         # Az-Zumar: O My servants who have transgressed, do not despair of Allah's mercy...
+    (35, 2),          # Fatir: Whatever Allah opens to mankind of mercy - none can withhold it; and whatever He withholds - none can release it...
+    (2, 152),         # Al-Baqarah: Remember Me; I will remember you. And be grateful to Me and do not deny Me
+    (94, (5, 6)),     # Ash-Sharh: For indeed, with hardship ease. Indeed, with hardship ease (paired promise)
+    (14, 7),          # Ibrahim: If you are grateful, I will surely increase you
+    (9, 129),         # At-Tawbah: If they turn away, say: Sufficient for me is Allah; none has the right to be worshiped but Him
+    (40, 60),         # Ghafir: Call upon Me; I will respond to you
+    (20, 46),         # Taha: Fear not. Indeed, I am with you both; I hear and I see
+    (21, 87),         # Al-Anbiya: Du'a of Yunus (There is no deity except You; exalted are You...)
+    (33, (41, 42)),   # Al-Ahzab: O you who have believed, remember Allah with much remembrance and exalt Him morning and afternoon
+    (33, 56),         # Al-Ahzab: Indeed, Allah and His angels confer blessing upon the Prophet. O you who have believed, ask blessings...
+    (3, 139),         # Ali 'Imran: Do not weaken and do not grieve, and you will be superior if you are [true] believers
+    (2, 201),         # Al-Baqarah: Our Lord, give us in this world [that which is] good and in the Hereafter [that which is] good...
+    (3, 8),           # Ali 'Imran: Our Lord, let not our hearts deviate after You have guided us and grant us mercy...
+    (55, 60),         # Ar-Rahman: Is the reward for good [anything] but good?
+    (29, 69),         # Al-Ankabut: And those who strive for Us - We will surely guide them to Our ways
+    (50, 16),         # Qaf: And We are closer to him than [his] jugular vein
+    (35, 15),         # Fatir: O mankind, you are those in need of Allah, while Allah is the Free of need, the Praiseworthy
+    (48, 4),          # Al-Fath: It is He who sent down tranquility into the hearts of the believers...
+    (59, 18),         # Al-Hashr: O you who have believed, fear Allah. And let every soul look to what it has put forth for tomorrow...
+    (20, 114),        # Taha: Exalted is Allah, the King, the Truth... and say: My Lord, increase me in knowledge
+    (15, (98, 99)),   # Al-Hijr: Exalt [Allah] with praise of your Lord and be of those who prostrate, and worship your Lord until certainty...
+    (68, 4),          # Al-Qalam: And indeed, you are of a great moral character
+    (88, (21, 22)),   # Al-Ghashiyah: So remind, [O Muhammad]; you are only a reminder. You are not over them a controller
+    (64, 13),         # At-Taghabun: Allah - there is no deity except Him. And upon Allah let the believers rely
+    (41, 34),         # Fussilat: Not equal are the good deed and the bad. Repel [evil] by that [deed] which is better...
+    (42, 28),         # Ash-Shura: And it is He who sends down the rain after they had despaired and spreads His mercy...
+    (67, (13, 14)),   # Al-Mulk: Conceal your speech or publicize it; indeed, He is Knowing of that within the breasts. Does He not know...
+    (112, (1, 4)),    # Al-Ikhlas: Complete Surah (The absolute unity and perfection of Allah)
 ]
 
 
 def normalize_quranic_text(text: str) -> str:
     """
-    Normalizes Uthmani/Academy orthography marks to standard Arabic Unicode
-    while 100% preserving all Tashkeel (harakat, shaddah, sukoon, tanween).
-    Ensures complete glyph support without tofu boxes in Cairo font.
+    Cleans raw Uthmani Quranic text while 100% preserving:
+    - Authentic Uthmanic orthography (الرسم العثماني المصحفي).
+    - All Tashkeel (harakat, shaddah, sukoon, tanween).
+    - Authentic Tajweed and Waqf marks (صلى \u06D6, قلى \u06D7, ج \u06DA, مـ \u06D8, لا \u06D9, معانقة \u06DB).
+    - Quranic Sukoon \u06E1 (small dotless head of khah), rounded zero \u06DF,
+      small high waw \u06E5 (ۥ), small high yeh \u06E6 (ۦ).
+    - Maps Farsi Yeh (\u06CC) to Arabic Yeh (\u064A) to ensure authentic Hafs two-dot rendering.
+    - Strips isolated leading Rub el Hizb quarter markers (۞ \u06DE) and non-breaking spaces.
     """
     if not text:
         return ""
 
-    replacements = {
-        "\u06E1": "\u0652",  # Quranic Sukoon (small dotless head of khah) -> Standard Sukoon
-        "\u06CC": "\u064A",  # Farsi Yeh -> Arabic Yeh
-        "\u06C0": "\u0647\u0654", # Heh with Hamza
-        "\u06E5": "\u0648",  # Small high waw
-        "\u06E6": "\u064A",  # Small high yeh
-        "\u06ED": "\u0645",  # Small low meem
-        # Remove specialized recitation pause and decorative markers
-        "\u06E8": "",        # Small high noon
-        "\u06DF": "",        # Small high rounded zero
-        "\u06E0": "",        # Small high upright rectangular zero
-        "\u06E2": "",        # Small high meem isolated
-        "\u06E3": "",        # Small low seen
-        "\u06E4": "",        # Small high mad
-        "\u06DA": "",        # Small high jeem (permissible stop)
-        "\u06DB": "",        # Small high three dots
-        "\u06DC": "",        # Small high seen
-        "\u06D6": "",        # Small high sad-lam-alef
-        "\u06D7": "",        # Small high qaf-lam-alef
-        "\u06D8": "",        # Small high meem
-        "\u06D9": "",        # Small high lam-alef
-    }
-    for old, new in replacements.items():
-        text = text.replace(old, new)
+    # Strip leading Rub el Hizb quarter marker and non-breaking spaces
+    text = text.lstrip(" ۞\xa0\u06de")
 
-    # Normalize whitespace
+    # Map Farsi Yeh to Arabic Yeh for authentic two-dot presentation in Hafs
+    text = text.replace("\u06cc", "\u064a")
+    text = text.replace("\u06c0", "\u0647\u0654")
+
+    # Clean redundant whitespace while strictly preserving all Uthmani and Waqf marks
     return " ".join(text.strip().split())
 
 
@@ -233,33 +232,52 @@ def _http_get_json(url: str, fallback_url: Optional[str] = None) -> dict:
         raise
 
 
-def fetch_verse(chapter: int, verse: int) -> dict:
+def fetch_verse(chapter: int, verse: Union[int, Tuple[int, int]]) -> dict:
     """
-    Fetches Arabic text with Tashkeel and English translation for chapter:verse.
-    Arabic edition: ara-quranacademy (authentic Uthmani/Academy script).
-    English edition: eng-ummmuhammad (Sahih International).
+    Fetches Arabic text with authentic Uthmani script, Tashkeel, and Waqf marks,
+    along with verified English translation (Sahih International).
+    Supports either a single verse (e.g. 186) or a verse range (e.g. (2, 3)).
     """
     if chapter < 1 or chapter > 114:
         raise ValueError(f"Chapter {chapter} is out of bounds (1-114).")
 
     surah_info = SURAHS.get(chapter, {"name_en": f"Surah {chapter}", "name_ar": "", "meaning": ""})
 
-    url_ar_primary = f"{PRIMARY_API_BASE}/ara-quranacademy/{chapter}/{verse}.json"
-    url_ar_fallback = f"{FALLBACK_API_BASE}/ara-quranacademy/{chapter}/{verse}.json"
+    if isinstance(verse, (tuple, list)):
+        start_v, end_v = int(verse[0]), int(verse[1])
+        ref_str = f"{chapter}:{start_v}-{end_v}"
+        verses_to_fetch = list(range(start_v, end_v + 1))
+    else:
+        v_int = int(verse)
+        ref_str = f"{chapter}:{v_int}"
+        verses_to_fetch = [v_int]
 
-    url_en_primary = f"{PRIMARY_API_BASE}/eng-ummmuhammad/{chapter}/{verse}.json"
-    url_en_fallback = f"{FALLBACK_API_BASE}/eng-ummmuhammad/{chapter}/{verse}.json"
+    arabic_parts = []
+    english_parts = []
 
-    data_ar = _http_get_json(url_ar_primary, url_ar_fallback)
-    data_en = _http_get_json(url_en_primary, url_en_fallback)
+    for v_num in verses_to_fetch:
+        url_ar_primary = f"{PRIMARY_API_BASE}/ara-quranacademy/{chapter}/{v_num}.json"
+        url_ar_fallback = f"{FALLBACK_API_BASE}/ara-quranacademy/{chapter}/{v_num}.json"
+        url_en_primary = f"{PRIMARY_API_BASE}/eng-ummmuhammad/{chapter}/{v_num}.json"
+        url_en_fallback = f"{FALLBACK_API_BASE}/eng-ummmuhammad/{chapter}/{v_num}.json"
 
-    raw_ar = data_ar.get("text", "")
-    normalized_ar = normalize_quranic_text(raw_ar)
-    raw_en = data_en.get("text", "").strip()
+        data_ar = _http_get_json(url_ar_primary, url_ar_fallback)
+        data_en = _http_get_json(url_en_primary, url_en_fallback)
 
-    # Clean any unclosed quotes or brackets in English translation
-    if raw_en.startswith('"') and not raw_en.endswith('"'):
-        raw_en = raw_en + '"'
+        raw_ar = data_ar.get("text", "")
+        clean_ar = normalize_quranic_text(raw_ar)
+        raw_en = data_en.get("text", "").strip()
+
+        # Clean unclosed quotes in English
+        if raw_en.startswith('"') and not raw_en.endswith('"'):
+            raw_en = raw_en + '"'
+
+        arabic_parts.append(clean_ar)
+        english_parts.append(raw_en)
+
+    # Join multiple verses with the authentic Ayah sign (۝)
+    combined_arabic = " ۝ ".join(arabic_parts)
+    combined_english = " ".join(english_parts)
 
     return {
         "chapter": chapter,
@@ -267,22 +285,22 @@ def fetch_verse(chapter: int, verse: int) -> dict:
         "surah_name_en": surah_info["name_en"],
         "surah_name_ar": surah_info["name_ar"],
         "surah_meaning": surah_info["meaning"],
-        "arabic_text": normalized_ar,
-        "english_meaning": raw_en,
-        "reference": f"{chapter}:{verse}",
-        "source_citation": f"Surah {surah_info['name_en']} [{chapter}:{verse}]",
-        "char_count": len(normalized_ar),
-        "word_count": len(normalized_ar.split()),
+        "arabic_text": combined_arabic,
+        "english_meaning": combined_english,
+        "reference": ref_str,
+        "source_citation": f"Surah {surah_info['name_en']} [{ref_str}]",
+        "char_count": len(combined_arabic),
+        "word_count": len(combined_arabic.split()),
     }
 
 
 def is_short_and_meaningful(
     verse_data: dict,
-    max_words: int = 18,
-    max_chars: int = 100,
+    max_words: int = 55,
+    max_chars: int = 340,
 ) -> bool:
     """
-    Returns True if the verse meets the 'short and full of meaning' criteria,
+    Returns True if the verse meets the criteria,
     ensuring it fits cleanly and comfortably on Instagram graphics.
     """
     words = verse_data.get("word_count", 0)
@@ -297,12 +315,11 @@ def save_verse_to_db(
 ) -> ContentItem:
     """
     Saves a fetched Quranic verse into the database as a VERSE_OF_THE_DAY item
-    with a verified SourceRecord. Idempotent: does not create duplicates.
+    with a verified SourceRecord. Idempotent: updates existing verses to raw Uthmanic script.
     """
     ch = verse_data["chapter"]
-    v = verse_data["verse"]
-    ref_str = f"{ch}:{v}"
-    surah_name = f"Surah {verse_data['surah_name_en']} ({verse_data['surah_name_ar']})"
+    ref_str = verse_data.get("reference") or f"{ch}:{verse_data['verse']}"
+    surah_name = f"Surah {verse_data['surah_name_en']} ({verse_data.get('surah_name_ar', '')})"
 
     # Check if source record exists
     source = (
@@ -321,7 +338,7 @@ def save_verse_to_db(
             reference=ref_str,
             verification_notes=(
                 f"Sourced from Quran API (fawazahmed0/quran-api). "
-                f"Script: Quran Academy (Uthmani/Tanzil verified). "
+                f"Script: Quran Academy (Uthmani/Tanzil verified, King Fahd Complex). "
                 f"Translation: Sahih International (Umm Muhammad)."
             ),
             verified_by="Quran API / Tanzil / Sahih International",
@@ -330,7 +347,7 @@ def save_verse_to_db(
         db.add(source)
         db.flush()
 
-    # Check if content item exists with same text and source
+    # Check if content item exists with same source
     existing_item = (
         db.query(ContentItem)
         .filter(
@@ -341,7 +358,17 @@ def save_verse_to_db(
     )
 
     if existing_item:
-        logger.info(f"Verse {ref_str} already exists in content library (id: {existing_item.id})")
+        # Upgrade existing record to raw Uthmanic script if it had previous stripped text
+        if (
+            existing_item.arabic_text != verse_data["arabic_text"]
+            or existing_item.english_meaning != verse_data["english_meaning"]
+        ):
+            existing_item.arabic_text = verse_data["arabic_text"]
+            existing_item.english_meaning = verse_data["english_meaning"]
+            db.commit()
+            logger.info(f"Updated verse {ref_str} to authentic raw Uthmanic script.")
+        else:
+            logger.info(f"Verse {ref_str} already up-to-date in content library (id: {existing_item.id})")
         return existing_item
 
     item = ContentItem(
@@ -377,16 +404,17 @@ def sync_curated_verses(db: Session, auto_approve: bool = True) -> List[ContentI
     imported_items = []
     logger.info(f"Syncing {len(CURATED_SHORT_VERSES)} curated short verses from Quran API...")
 
-    for ch, v in CURATED_SHORT_VERSES:
+    for item_spec in CURATED_SHORT_VERSES:
+        ch, v_spec = item_spec[0], item_spec[1]
         try:
-            verse_data = fetch_verse(ch, v)
+            verse_data = fetch_verse(ch, v_spec)
             if is_short_and_meaningful(verse_data):
                 item = save_verse_to_db(db, verse_data, auto_approve=auto_approve)
                 imported_items.append(item)
             else:
-                logger.warning(f"Verse {ch}:{v} exceeded short length threshold, skipping.")
+                logger.warning(f"Verse {ch}:{v_spec} exceeded short length threshold, skipping.")
         except Exception as e:
-            logger.error(f"Failed to fetch or import verse {ch}:{v}: {e}")
+            logger.error(f"Failed to fetch or import verse {ch}:{v_spec}: {e}")
 
     logger.info(f"Successfully synced {len(imported_items)} short verses.")
     return imported_items

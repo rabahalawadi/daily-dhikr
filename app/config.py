@@ -28,6 +28,14 @@ class Settings(BaseSettings):
         description="PostgreSQL URL for production (e.g. Supabase) or SQLite for local dev/testing"
     )
 
+    @property
+    def resolved_database_url(self) -> str:
+        """Resolves relative SQLite URL to absolute path rooted at PROJECT_ROOT."""
+        if self.DATABASE_URL in ("sqlite:///./daily_dhikr.db", "sqlite:///daily_dhikr.db"):
+            db_file = self.PROJECT_ROOT / "daily_dhikr.db"
+            return f"sqlite:///{db_file.as_posix()}"
+        return self.DATABASE_URL
+
     # Timezone
     TIMEZONE: str = Field(
         default="Asia/Amman",
@@ -203,8 +211,19 @@ class Settings(BaseSettings):
                 return p
         return self.FONTS_DIR / "Cairo.ttf"
 
+    def get_uthmanic_font_path(self) -> Path:
+        """Returns path to the verified King Fahd Complex Uthmanic Quran script font."""
+        for name in ("UthmanicHafs.otf", "UthmanicHafs.ttf", "Amiri-Bold.ttf"):
+            p = self.FONTS_DIR / name
+            if p.exists():
+                return p
+        return self.get_arabic_font_path()
+
     def get_cairo_font_path(self) -> Path:
-        """Alias for backward compatibility."""
+        """Returns path to Cairo font (used for Hadith, Adhkar, and general text)."""
+        cairo = self.FONTS_DIR / "Cairo.ttf"
+        if cairo.exists():
+            return cairo
         return self.get_arabic_font_path()
 
     def get_inter_font_path(self) -> Path:

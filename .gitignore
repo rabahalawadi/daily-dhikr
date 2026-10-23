@@ -48,6 +48,7 @@ session.json
 # Generated media assets & diagnostics
 generated_assets/
 artifacts/
+scratch/
 .pytest_cache/
 .coverage
 htmlcov/
