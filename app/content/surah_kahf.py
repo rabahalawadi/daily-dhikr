@@ -290,43 +290,108 @@ def get_or_create_kahf_content_item(db: Session) -> ContentItem:
 
 def render_kahf_story_background(output_path: Optional[Path] = None) -> Path:
     """
-    Renders an elegant 1080x1920 9:16 background for Instagram Story sharing:
+    Renders an elegant 1080x1920 9:16 cover background for Instagram Story sharing:
     - Cream background (#FAF8F1)
-    - Gold and Forest Green geometric borders
-    - Top: ✦ سُورَةُ الكَهْفِ ✦
-    - Bottom: جمعة مباركة · انقر لقراءة السورة كاملة
+    - Gold and Forest Green geometric borders with corner ornaments
+    - Top: ✦ يَوْمُ الجُمُعَةِ ✦
+    - Middle:
+        * Authentic Madani Mushaf banner: سُورَةُ الكَهْفِ
+        * جُمُعَةٌ مُبَارَكَة
+        * Prominent, large CTA button: اضغط لتصفح السورة كاملة  ↗ (Press to see the surah)
+        * Subtitle: تلاوة كاملة بالمصحف الشريف · ١٢ صفحة
+    - Bottom:
+        * Sahih Friday Hadith: « مَنْ قَرَأَ سُورَةَ الْكَهْفِ فِي يَوْمِ الْجُمُعَةِ أَضَاءَ لَهُ مِنَ النُّورِ مَا بَيْنَ الْجُمُعَتَيْنِ »
+        * Reference: رواه الحاكم والبيهقي · صحيح
     """
     width, height = 1080, 1920
     canvas = Image.new("RGB", (width, height), settings.COLOR_CREAM)
     draw = ImageDraw.Draw(canvas)
 
-    border_gold = settings.COLOR_GOLD
-    border_green = settings.COLOR_FOREST_GREEN
+    border_gold = settings.COLOR_GOLD          # #B99A59
+    border_green = settings.COLOR_FOREST_GREEN  # #244936
 
-    draw.rectangle([25, 25, width - 25, height - 25], outline=border_gold, width=2)
-    draw.rectangle([33, 33, width - 33, height - 33], outline=border_green, width=1)
+    # 1. Double border with corner accents
+    draw.rectangle([30, 30, width - 30, height - 30], outline=border_gold, width=2)
+    draw.rectangle([38, 38, width - 38, height - 38], outline=border_green, width=1)
 
-    # Top Header
-    header_text = SURAH_NAME_AR
-    arabic_font_path = settings.get_arabic_font_path()
+    for cx, cy in [(30, 30), (width - 30, 30), (30, height - 30), (width - 30, height - 30)]:
+        draw.rectangle([cx - 5, cy - 5, cx + 5, cy + 5], fill=border_gold)
 
-    if HAS_HARFBUZZ and arabic_font_path.exists():
-        render_arabic_harfbuzz(
-            canvas, header_text, arabic_font_path, font_size=48,
-            color_hex=border_green, center_x=width // 2, baseline_y=160
-        )
-    else:
-        cairo_font = get_arabic_font(48)
-        draw.text((width // 2, 140), shape_arabic_text(header_text), font=cairo_font, fill=border_green, anchor="mm")
+    # 2. Top Header Emblem
+    top_tag = "✦  يَوْمُ الجُمُعَةِ  ✦"
+    cairo_top = get_arabic_font(32)
+    draw.text((width // 2, 175), shape_arabic_text(top_tag), font=cairo_top, fill=border_gold, anchor="mm")
 
-    draw.line([(width // 2 - 140, 200), (width // 2 + 140, 200)], fill=border_gold, width=2)
+    # 3. Middle Section: Authentic Mushaf Title / Banner
+    raw_page_293 = RAW_PAGES_DIR / "page_293.png"
+    banner_drawn = False
+    if raw_page_293.exists():
+        try:
+            with Image.open(raw_page_293) as raw_img:
+                banner = raw_img.crop((100, 2855, raw_img.width - 100, 3320))
+                banner_rgba = colorize_mushaf_rgba(banner.convert("RGBA"), (36, 73, 54))
+                bw = 880
+                bh = int(bw * (banner_rgba.height / banner_rgba.width))
+                resized_banner = banner_rgba.resize((bw, bh), Image.Resampling.LANCZOS)
+                bx = (width - bw) // 2
+                by = 640
+                canvas.paste(resized_banner, (bx, by), resized_banner)
+                banner_drawn = True
+        except Exception as e:
+            logger.warning(f"Could not crop Mushaf banner: {e}")
 
-    # Bottom Call-to-action
-    cta_text = "جمعة مباركة  ·  انقر لقراءة السورة كاملة"
-    cta_font = get_arabic_font(28)
-    draw.text((width // 2, height - 160), shape_arabic_text(cta_text), font=cta_font, fill=border_green, anchor="mm")
+    if not banner_drawn:
+        # Fallback to typography title
+        header_text = SURAH_NAME_AR
+        arabic_font_path = settings.get_arabic_font_path()
+        if HAS_HARFBUZZ and arabic_font_path.exists():
+            render_arabic_harfbuzz(
+                canvas, header_text, arabic_font_path, font_size=82,
+                color_hex=border_green, center_x=width // 2, baseline_y=710
+            )
+        else:
+            cairo_title = get_arabic_font(82)
+            draw.text((width // 2, 680), shape_arabic_text(header_text), font=cairo_title, fill=border_green, anchor="mm")
+        draw.line([(width // 2 - 160, 755), (width // 2 + 160, 755)], fill=border_gold, width=2)
+
+    # Subtitle under banner
+    friday_greeting = "جُمُعَةٌ مُبَارَكَة"
+    cairo_greet = get_arabic_font(44)
+    draw.text((width // 2, 880), shape_arabic_text(friday_greeting), font=cairo_greet, fill=border_green, anchor="mm")
+
+    # Central Prominent Button: ( Press to see the surah )
+    btn_w, btn_h = 780, 120
+    btn_x0 = (width - btn_w) // 2
+    btn_y0 = 960
+    btn_x1 = btn_x0 + btn_w
+    btn_y1 = btn_y0 + btn_h
+
+    # Luxury pill background with gold border
+    draw.rounded_rectangle([btn_x0, btn_y0, btn_x1, btn_y1], radius=60, fill="#F4EDE0", outline=border_gold, width=2)
+
+    cta_text = "اضغط لتصفح السورة كاملة  ↗"
+    cairo_cta = get_arabic_font(42)
+    draw.text((width // 2, btn_y0 + btn_h // 2), shape_arabic_text(cta_text), font=cairo_cta, fill=border_green, anchor="mm")
+
+    # Subtext under button
+    sub_desc = "تلاوة كاملة بالمصحف الشريف  ·  ١٢ صفحة"
+    cairo_desc = get_arabic_font(26)
+    draw.text((width // 2, btn_y1 + 45), shape_arabic_text(sub_desc), font=cairo_desc, fill=border_gold, anchor="mm")
+
+    # 4. Bottom Section: Friday Hadith
+    hadith_l1 = "« مَنْ قَرَأَ سُورَةَ الْكَهْفِ فِي يَوْمِ الْجُمُعَةِ »"
+    hadith_l2 = "« أَضَاءَ لَهُ مِنَ النُّورِ مَا بَيْنَ الْجُمُعَتَيْنِ »"
+    hadith_src = "رواه الحاكم والبيهقي  ·  صحيح"
+
+    cairo_hadith = get_arabic_font(30)
+    cairo_src = get_arabic_font(22)
+
+    draw.text((width // 2, height - 260), shape_arabic_text(hadith_l1), font=cairo_hadith, fill=border_green, anchor="mm")
+    draw.text((width // 2, height - 215), shape_arabic_text(hadith_l2), font=cairo_hadith, fill=border_green, anchor="mm")
+    draw.text((width // 2, height - 160), shape_arabic_text(hadith_src), font=cairo_src, fill=border_gold, anchor="mm")
 
     out = output_path or (RENDERED_PAGES_DIR / "kahf_story_background.png")
     out.parent.mkdir(parents=True, exist_ok=True)
     canvas.save(out, "PNG", optimize=True)
     return out
+
