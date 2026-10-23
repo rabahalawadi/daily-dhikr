@@ -113,7 +113,7 @@ def render_kahf_page(
     draw.rectangle([26, 26, width - 26, height - 26], outline=border_green, width=1)
 
     # 2. Header: سُورَةُ الكَهْفِ
-    header_text = f"✦ {SURAH_NAME_AR} ✦"
+    header_text = SURAH_NAME_AR
     cairo_font = get_arabic_font(42)
     arabic_font_path = settings.get_arabic_font_path()
 
@@ -307,7 +307,7 @@ def render_kahf_story_background(output_path: Optional[Path] = None) -> Path:
     draw.rectangle([33, 33, width - 33, height - 33], outline=border_green, width=1)
 
     # Top Header
-    header_text = f"✦ {SURAH_NAME_AR} ✦"
+    header_text = SURAH_NAME_AR
     arabic_font_path = settings.get_arabic_font_path()
 
     if HAS_HARFBUZZ and arabic_font_path.exists():

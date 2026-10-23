@@ -212,8 +212,8 @@ class Settings(BaseSettings):
         return self.FONTS_DIR / "Cairo.ttf"
 
     def get_uthmanic_font_path(self) -> Path:
-        """Returns path to the verified King Fahd Complex Uthmanic Quran script font."""
-        for name in ("UthmanicHafs.otf", "UthmanicHafs.ttf", "Amiri-Bold.ttf"):
+        """Returns path to the verified Amiri Quran / Uthmanic script font."""
+        for name in ("AmiriQuran-Regular.ttf", "AmiriQuran.ttf", "UthmanicHafs.otf", "UthmanicHafs.ttf", "Amiri-Bold.ttf"):
             p = self.FONTS_DIR / name
             if p.exists():
                 return p

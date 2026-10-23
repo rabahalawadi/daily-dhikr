@@ -276,7 +276,7 @@ def fetch_verse(chapter: int, verse: Union[int, Tuple[int, int]]) -> dict:
         english_parts.append(raw_en)
 
     # Join multiple verses with the authentic Ayah sign (۝)
-    combined_arabic = " ۝ ".join(arabic_parts)
+    combined_arabic = " ۝ ".join(arabic_parts) + " ۝"
     combined_english = " ".join(english_parts)
 
     return {
