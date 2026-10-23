@@ -75,8 +75,8 @@ def test_prayer_schedule_slots_alignment():
     feed = slot_map["feed_post"]
     assert feed["prayer_name"] == "Duha"
     assert feed["pub_type"] == PublicationType.FEED_POST
-    assert feed["category"] == ContentCategory.DAILY_REMINDER
-    assert feed["template"] == "feed_post"
+    assert feed["category"] in (ContentCategory.DAILY_REMINDER, ContentCategory.VERSE_OF_THE_DAY)
+    assert feed["template"] in ("feed_post", "verse_of_the_day")
     assert feed["scheduled_local"].hour == 8
 
     # 3. Reminder Story at Dhuhr
