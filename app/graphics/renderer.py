@@ -264,99 +264,141 @@ class GraphicRenderer:
             width=2
         )
 
-        # 5. Content Layout Calculation with Adaptive Auto-Fitting
+        # Check if authentic raw Madani Mushaf PNG exists (Same architecture as Surah Al-Kahf)
+        raw_mushaf_png = None
+        if is_quran and item.source and item.source.reference:
+            ref_slug = item.source.reference.replace(":", "_")
+            possible_path = settings.PROJECT_ROOT / "assets" / "verses" / "raw" / f"verse_{ref_slug}.png"
+            if possible_path.exists():
+                raw_mushaf_png = possible_path
+
         content_top = header_y + 140
         content_bottom = template.height - template.safe_margin_bottom - 80
         available_h = content_bottom - content_top
 
-        ar_size = template.arabic_font_size
-        en_size = template.english_font_size
+        if raw_mushaf_png:
+            # 5a. Direct Madani Mushaf Calligraphy PNG Rendering
+            from app.content.verse_raw_png import colorize_ayah_rgba
+            with Image.open(raw_mushaf_png) as ayah_raw:
+                colorized_ayah = colorize_ayah_rgba(ayah_raw, (36, 73, 54))
 
-        while True:
-            cur_ar_font = get_arabic_font(ar_size, weight=450)
-            cur_en_font = get_english_font(en_size, weight=600)
-
-            ar_lines = wrap_arabic_lines(
-                item.arabic_text,
-                cur_ar_font,
-                max_text_width,
-                font_path=arabic_font_path,
-                font_size=ar_size,
-            )
-            en_lines = wrap_english_lines(item.english_meaning, cur_en_font, max_text_width)
-
-            ar_line_h = int(ar_size * 1.55)
-            en_line_h = int(en_size * 1.45)
+            en_font = get_english_font(template.english_font_size, weight=600)
+            en_lines = wrap_english_lines(item.english_meaning, en_font, max_text_width) if item.english_meaning else []
+            en_line_h = int(template.english_font_size * 1.45)
             content_en_h = (70 + len(en_lines) * en_line_h) if en_lines else 0
-            total_content_h = (len(ar_lines) * ar_line_h) + content_en_h
 
-            if total_content_h <= available_h or ar_size <= 36:
-                arabic_font = cur_ar_font
-                english_font = cur_en_font
-                arabic_lines = ar_lines
-                english_lines = en_lines
-                arabic_line_height = ar_line_h
-                english_line_height = en_line_h
-                final_ar_size = ar_size
-                break
+            max_ayah_h = available_h - content_en_h - 40
+            scale_w = max_text_width / colorized_ayah.width
+            scale_h = max_ayah_h / colorized_ayah.height if colorized_ayah.height > 0 else 1.0
+            scale = min(scale_w, scale_h, 1.0)
 
-            ar_size -= 3
-            en_size = max(20, int(ar_size * (template.english_font_size / template.arabic_font_size)))
+            target_w = max(50, int(colorized_ayah.width * scale))
+            target_h = max(20, int(colorized_ayah.height * scale))
+            resized_ayah = colorized_ayah.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
-        # Center content vertically in available area
-        start_y = content_top + max(20, (available_h - total_content_h) // 2)
+            total_h = target_h + content_en_h
+            start_y = content_top + max(20, (available_h - total_h) // 2)
 
-        # 6. Render Arabic text lines
-        current_y = start_y
-        for line in arabic_lines:
-            if HAS_HARFBUZZ and arabic_font_path.exists():
-                baseline = current_y + int(final_ar_size * 0.28)
-                render_arabic_harfbuzz(
-                    target_image=image,
-                    line=line,
+            ayah_x = (template.width - target_w) // 2
+            image.paste(resized_ayah, (ayah_x, start_y), resized_ayah)
+            current_y = start_y + target_h
+
+            if en_lines:
+                current_y += 30
+                draw_geometric_accent(draw, template.width // 2, current_y, size=16, color=template.accent_color)
+                draw.line([(template.width // 2 - 80, current_y), (template.width // 2 - 25, current_y)], fill=template.accent_color, width=1)
+                draw.line([(template.width // 2 + 25, current_y), (template.width // 2 + 80, current_y)], fill=template.accent_color, width=1)
+                current_y += 45
+
+                for line in en_lines:
+                    draw.text((template.width // 2, current_y), line, font=en_font, fill=template.secondary_text_color, anchor="mm")
+                    current_y += en_line_h
+        else:
+            # 5b. Font-Based Layout Calculation with Adaptive Auto-Fitting (Fallback / Hadith)
+            ar_size = template.arabic_font_size
+            en_size = template.english_font_size
+
+            while True:
+                cur_ar_font = get_arabic_font(ar_size, weight=450)
+                cur_en_font = get_english_font(en_size, weight=600)
+
+                ar_lines = wrap_arabic_lines(
+                    item.arabic_text,
+                    cur_ar_font,
+                    max_text_width,
                     font_path=arabic_font_path,
-                    font_size=final_ar_size,
-                    color_hex=template.primary_text_color,
-                    center_x=template.width // 2,
-                    baseline_y=baseline,
-                    weight=450.0,
+                    font_size=ar_size,
                 )
-            else:
-                draw.text(
-                    (template.width // 2, current_y),
-                    shape_arabic_text(line),
-                    font=arabic_font,
-                    fill=template.primary_text_color,
-                    anchor="mm"
-                )
-            current_y += arabic_line_height
+                en_lines = wrap_english_lines(item.english_meaning, cur_en_font, max_text_width)
 
-        # 7. Render Mid-divider & English translation (if present)
-        if english_lines:
-            current_y += 20
-            draw_geometric_accent(draw, template.width // 2, current_y, size=16, color=template.accent_color)
-            draw.line(
-                [(template.width // 2 - 80, current_y), (template.width // 2 - 25, current_y)],
-                fill=template.accent_color,
-                width=1
-            )
-            draw.line(
-                [(template.width // 2 + 25, current_y), (template.width // 2 + 80, current_y)],
-                fill=template.accent_color,
-                width=1
-            )
-            current_y += 45
+                ar_line_h = int(ar_size * 1.55)
+                en_line_h = int(en_size * 1.45)
+                content_en_h = (70 + len(en_lines) * en_line_h) if en_lines else 0
+                total_content_h = (len(ar_lines) * ar_line_h) + content_en_h
 
-            # 8. Render English translation lines
-            for line in english_lines:
-                draw.text(
-                    (template.width // 2, current_y),
-                    line,
-                    font=english_font,
-                    fill=template.secondary_text_color,
-                    anchor="mm"
+                if total_content_h <= available_h or ar_size <= 36:
+                    arabic_font = cur_ar_font
+                    english_font = cur_en_font
+                    arabic_lines = ar_lines
+                    english_lines = en_lines
+                    arabic_line_height = ar_line_h
+                    english_line_height = en_line_h
+                    final_ar_size = ar_size
+                    break
+
+                ar_size -= 3
+                en_size = max(20, int(ar_size * (template.english_font_size / template.arabic_font_size)))
+
+            start_y = content_top + max(20, (available_h - total_content_h) // 2)
+
+            current_y = start_y
+            for line in arabic_lines:
+                if HAS_HARFBUZZ and arabic_font_path.exists():
+                    baseline = current_y + int(final_ar_size * 0.28)
+                    render_arabic_harfbuzz(
+                        target_image=image,
+                        line=line,
+                        font_path=arabic_font_path,
+                        font_size=final_ar_size,
+                        color_hex=template.primary_text_color,
+                        center_x=template.width // 2,
+                        baseline_y=baseline,
+                        weight=450.0,
+                    )
+                else:
+                    draw.text(
+                        (template.width // 2, current_y),
+                        shape_arabic_text(line),
+                        font=arabic_font,
+                        fill=template.primary_text_color,
+                        anchor="mm"
+                    )
+                current_y += arabic_line_height
+
+            if english_lines:
+                current_y += 20
+                draw_geometric_accent(draw, template.width // 2, current_y, size=16, color=template.accent_color)
+                draw.line(
+                    [(template.width // 2 - 80, current_y), (template.width // 2 - 25, current_y)],
+                    fill=template.accent_color,
+                    width=1
                 )
-                current_y += english_line_height
+                draw.line(
+                    [(template.width // 2 + 25, current_y), (template.width // 2 + 80, current_y)],
+                    fill=template.accent_color,
+                    width=1
+                )
+                current_y += 45
+
+                for line in english_lines:
+                    draw.text(
+                        (template.width // 2, current_y),
+                        line,
+                        font=english_font,
+                        fill=template.secondary_text_color,
+                        anchor="mm"
+                    )
+                    current_y += english_line_height
 
         # 9. Render Footer & Source Citation
         footer_y = template.height - template.safe_margin_bottom
