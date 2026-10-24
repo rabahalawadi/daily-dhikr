@@ -20,6 +20,9 @@ def test_instagrapi_dry_run_mode(monkeypatch):
     feed_res = pub.publish_feed_post("dummy.jpg", "Test Caption")
     assert feed_res.startswith("dryrun_instagrapi_feed_")
 
+    carousel_res = pub.publish_carousel(["img1.jpg", "img2.jpg"], "Test Caption")
+    assert carousel_res.startswith("dryrun_instagrapi_carousel_")
+
     story_res = pub.publish_story("dummy.jpg")
     assert story_res.startswith("dryrun_instagrapi_story_")
 
@@ -42,6 +45,7 @@ def test_instagrapi_live_publishing_mock(monkeypatch, tmp_path):
     mock_media = MagicMock()
     mock_media.pk = "9988776655"
     mock_cl.photo_upload.return_value = mock_media
+    mock_cl.album_upload.return_value = mock_media
     mock_cl.photo_upload_to_story.return_value = mock_media
 
     pub._client = mock_cl
@@ -50,6 +54,11 @@ def test_instagrapi_live_publishing_mock(monkeypatch, tmp_path):
     media_id = pub.publish_feed_post("test.jpg", "Caption")
     assert media_id == "9988776655"
     mock_cl.photo_upload.assert_called_once()
+
+    # Test carousel publish
+    carousel_id = pub.publish_carousel(["p1.png", "p2.png"], "Caption")
+    assert carousel_id == "9988776655"
+    mock_cl.album_upload.assert_called_once()
 
     # Test story publish
     story_id = pub.publish_story("test.jpg")

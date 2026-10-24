@@ -15,6 +15,7 @@ from app.content.surah_kahf import (
     render_kahf_page,
     get_or_create_kahf_content_item,
     render_kahf_carousel_pages,
+    render_kahf_story_background,
 )
 from app.content.captions import generate_bilingual_caption
 
@@ -43,6 +44,18 @@ def test_render_kahf_page_dimensions_and_frame(tmp_path):
     assert rendered.stat().st_size > 0
     with Image.open(rendered) as img:
         assert img.size == (1080, 1350)
+        assert img.format == "PNG"
+
+
+def test_render_kahf_story_background(tmp_path):
+    """Verifies that the Friday story cover background renders at 1080x1920."""
+    out_path = tmp_path / "test_kahf_story_bg.png"
+    rendered = render_kahf_story_background(out_path)
+
+    assert rendered.exists()
+    assert rendered.stat().st_size > 0
+    with Image.open(rendered) as img:
+        assert img.size == (1080, 1920)
         assert img.format == "PNG"
 
 

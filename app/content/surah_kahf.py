@@ -6,7 +6,7 @@ of Surah Al-Kahf in authentic Madinah Mushaf Arabic script.
 
 import logging
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import urllib.request
 
 from PIL import Image, ImageDraw, ImageFont
